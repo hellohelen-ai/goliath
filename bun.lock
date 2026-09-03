@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "@visionlabs/goliath",
+      "name": "@hellohelen-ai/goliath",
       "devDependencies": {
         "@types/bun": "^1.2.0",
         "ai": "^7.0.91",

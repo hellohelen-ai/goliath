@@ -11,7 +11,7 @@ phone cannot finish.
 It only needs one stone.
 
 ```ts
-import { createGoliath, defineTool } from "@visionlabs/goliath";
+import { createGoliath, defineTool } from "@hellohelen-ai/goliath";
 import { apple } from "@react-native-ai/apple";
 import { z } from "zod";
 
@@ -45,7 +45,7 @@ result.steps; // what it did, one line each
 
 Any [AI SDK](https://ai-sdk.dev) language model works. On a phone that is
 [`@react-native-ai/apple`](https://ai-sdk.dev/providers/community-providers/react-native-apple);
-in a test it is the scripted model from `@visionlabs/goliath/testing`.
+in a test it is the scripted model from `@hellohelen-ai/goliath/testing`.
 
 ## How a turn runs
 
@@ -100,7 +100,7 @@ tool loop natively. Both fall over on a phone for the same reasons:
 ## Testing without a phone
 
 ```ts
-import { fakeModel } from "@visionlabs/goliath/testing";
+import { fakeModel } from "@hellohelen-ai/goliath/testing";
 
 const model = fakeModel([
   { json: { kind: "tool", tool: "listTasks", brief: "see what is open" } },
