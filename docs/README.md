@@ -1,8 +1,9 @@
 # Design notes
 
-Three research briefs, written 2026-09-02, sit under `research/`. Each claim in them carries a
-source. This page is the short version: the rules Goliath follows, where each comes from, and
-where it lives in the code.
+Three research briefs on the platform and eight on other agent harnesses, written 2026-09-02, sit
+under `research/`. Each claim in them carries a source. [`research/harness-survey.md`](research/harness-survey.md)
+is the synthesis of the eight. This page is the short version: the rules Goliath follows, where
+each comes from, and where it lives in the code.
 
 | Brief                                                                                  | What it settles                                                                                                                                                                                                                                                 |
 | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,6 +30,20 @@ where it lives in the code.
 | The last three exchanges stay verbatim; an evicted one folds into a brief with fixed slots                     | Rolling summaries with recall-first prompts; decisions must travel, not just facts                                     | `scribe.ts`, `prompts.ts` `scribeSystem`                     |
 | Token counts are chars/4 with a 15% margin until the provider exposes `countTokens`                            | Apple's tokenizer is private; the provider reports zero usage; chars/4 is within 10 to 20% on English                  | `budget.ts`                                                  |
 | Every fixture names the ask, the expected tool calls, and where the turn should finish                         | τ-bench style end-state checks; the phone-vs-cloud split is the number that matters                                    | `evals/`                                                     |
+
+### Rules borrowed from the harness survey
+
+| Rule                                                                                      | Why                                                                                            | Where                                     |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| An empty answer gets one nudged retry, then escalates                                     | eve, OpenClaw, Hermes, Grok Bot all reissue once; none retry the same prompt twice             | `run-turn.ts` `EMPTY_ANSWER_NUDGE`        |
+| A declined write carries the user's reason, worded as a decision the model must not retry | deepagents and Claude Code rejection text; Mastra `declineToolCall`                            | `worker.ts`, `types.ts` `ConfirmDecision` |
+| A rejected plan is retried with the reason and the tool list                              | Claude Code feeds the validation error back; Hermes lists errors without re-pasting the schema | `conductor.ts` hints                      |
+| A first identical read is served from the earlier result; the second is a loop            | Claude Code's stub for an unchanged re-read                                                    | `run-turn.ts` `findRepeatOfReadOnly`      |
+| Three consecutive dead turns send the session to the cloud                                | Claude Code switches models after three overloads                                              | `create-goliath.ts` `sessionFallback`     |
+| Tools may shape their own model-facing output                                             | eve and Mastra `toModelOutput`                                                                 | `types.ts` `toModelOutput`                |
+| The brief updates in place, has a Pending slot, and never lists finished work as pending  | eve checkpoint prompt, OpenClaw safeguard headings, Hermes iterative update                    | `prompts.ts` `scribeSystem`               |
+| The conductor sees the step budget and a finish hint at 80%                               | Hermes's wrap-up notice                                                                        | `prompts.ts` `stepsLeft`                  |
+| Workers never use placeholders or guess a value                                           | deepagents' Haiku profile                                                                      | `prompts.ts` `workerSystem`               |
 
 ## Open questions to settle on a device
 
