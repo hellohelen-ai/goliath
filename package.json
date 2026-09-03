@@ -58,7 +58,7 @@
     "@types/bun": "^1.2.0",
     "ai": "^7.0.91",
     "prettier": "^3.6.0",
-    "typescript": "^5.9.0",
+    "typescript": "^7.0.0",
     "zod": "^4.2.0"
   },
   "publishConfig": {
