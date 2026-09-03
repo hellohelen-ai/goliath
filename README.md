@@ -113,7 +113,7 @@ harness sent exactly the prompts you expected. `model.calls` holds every prompt 
 
 ## Evals
 
-`evals/fixtures.ts` holds the asks a instructionsl assistant hears every day, with the tool calls a good
+`evals/fixtures.ts` holds the asks a personal assistant hears every day, with the tool calls a good
 run makes and where it should finish. `runEvals` scores any model against them and prints the
 split:
 
