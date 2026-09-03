@@ -91,6 +91,8 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
             summary: state.summary,
             steps,
             maxSteps: input.maxSteps,
+            window: input.window,
+            emit,
             ...(input.signal ? { signal: input.signal } : {}),
           })
         : { ok: true as const, plan: { kind: "answer", brief: "reply" } as Plan };
