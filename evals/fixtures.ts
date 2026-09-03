@@ -8,8 +8,17 @@ type Fixture = {
   ask: string;
   tools: string[];
   handledBy: "device" | "cloud";
+  /**
+   * What escalation means for this ask. `forbidden`: a cloud hand-off fails
+   * the fixture even if the answer is right. `expected`: the phone should
+   * hand off. `allowed`: either is fine; only the answer is judged.
+   * Defaults from `handledBy`: device → forbidden, cloud → expected.
+   */
+  escalation?: "forbidden" | "allowed" | "expected";
   /** Words the final answer must contain, lower-cased. */
   mentions?: string[];
+  /** Words the final answer must not contain (internal vocabulary, injected text). */
+  forbids?: string[];
 };
 
 const fixtures: Fixture[] = [

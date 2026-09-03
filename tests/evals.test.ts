@@ -30,6 +30,25 @@ describe("runEvals", () => {
     expect(formatReport(report)).toContain(`${report.total}/${report.total} passed`);
   });
 
+  test("escalation is forbidden by default for device fixtures, and pass^k needs every run", async () => {
+    let call = 0;
+    const report = await runEvals({
+      runs: 2,
+      fixtures: fixtures.filter((f) => f.id === "small-talk"),
+      // First run answers on device; second run escalates.
+      model: () => {
+        call += 1;
+        return call === 1
+          ? fakeModel([{ json: { kind: "answer", brief: "reply" } }, { text: "Morning!" }])
+          : fakeModel([{ json: { kind: "escalate", brief: "hand off" } }]);
+      },
+    });
+    const outcome = report.outcomes[0];
+    expect(outcome).toMatchObject({ pass: false, passes: 1, runs: 2 });
+    expect(outcome?.reasons).toEqual(["escalated, but escalation is forbidden"]);
+    expect(formatReport(report)).toContain("(pass^2)");
+  });
+
   test("flags the wrong tool and a missing mention", async () => {
     const report = await runEvals({
       fixtures: fixtures.filter((f) => f.id === "add-task"),
