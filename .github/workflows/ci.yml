@@ -36,6 +36,12 @@ jobs:
         working-directory: example
       - run: bun run typecheck
         working-directory: example
+      # Typechecking does not catch an invalid app config or a missing native
+      # peer dependency; doctor does, and bundling proves every import resolves.
+      - run: bun run doctor
+        working-directory: example
+      - run: bun run bundle
+        working-directory: example
 
   # Reanimated's rule: a change to the library is a change someone downstream reads about.
   # Add `no changelog` to the PR if it genuinely does not need an entry.

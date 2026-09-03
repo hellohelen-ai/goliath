@@ -9,10 +9,19 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "ai.hellohelen.goliath.example",
-      "deploymentTarget": "26.0"
+      "bundleIdentifier": "ai.hellohelen.goliath.example"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "26.0"
+          }
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }
