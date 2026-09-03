@@ -12,7 +12,9 @@ updates:
       actions:
         patterns: ["*"]
 
-  - package-ecosystem: npm
+  # `bun`, not `npm`: the npm ecosystem updates package.json but leaves bun.lock untouched,
+  # which fails `bun install --frozen-lockfile` in CI.
+  - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
