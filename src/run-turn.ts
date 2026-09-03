@@ -47,8 +47,8 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
   const state = await input.memory.load();
   emit({ type: "recall", summary: state.summary, recent: state.recent.length });
 
-  const escalate = async (reason: EscalationReason): Promise<RunResult> => {
-    emit({ type: "escalate", reason });
+  const escalate = async (reason: EscalationReason, error?: string): Promise<RunResult> => {
+    emit({ type: "escalate", reason, ...(error ? { error } : {}) });
     if (!input.fallback) {
       return { text: "", handledBy: "device", steps, trace };
     }
@@ -58,6 +58,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       recent: state.recent,
       steps,
       reason,
+      ...(error ? { error } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
     });
     await commit(input, state, { ask: input.ask, answer: text, at: Date.now() }, emit);
@@ -66,105 +67,123 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
 
   const hasTools = Object.keys(input.tools).length > 0;
 
-  for (;;) {
-    const stall = judgeStep({ steps, maxSteps: input.maxSteps });
-    if (stall) return escalate(stall);
+  try {
+    return await stones();
+  } catch (error) {
+    // Guardrail violations, refusals, a dead session after context overflow,
+    // an unavailable model: none of these are the app's fault, and none are
+    // worth retrying with the same input. The cloud gets the same step log.
+    if (isAbort(error)) throw error;
+    return escalate("model-error", describeError(error));
+  }
 
-    const outcome = hasTools
-      ? await plan({
+  async function stones(): Promise<RunResult> {
+    for (;;) {
+      const stall = judgeStep({ steps, maxSteps: input.maxSteps });
+      if (stall) return escalate(stall);
+
+      const outcome = hasTools
+        ? await plan({
+            model: input.model,
+            persona,
+            tools: input.tools,
+            ask: input.ask,
+            summary: state.summary,
+            steps,
+            maxSteps: input.maxSteps,
+            ...(input.signal ? { signal: input.signal } : {}),
+          })
+        : { ok: true as const, plan: { kind: "answer", brief: "reply" } as Plan };
+
+      if (!outcome.ok) return escalate("plan-invalid");
+      const next = outcome.plan;
+      emit({
+        type: "plan",
+        index: steps.length,
+        kind: next.kind === "escalate" ? "answer" : next.kind,
+        ...(next.tool ? { tool: next.tool } : {}),
+        brief: next.brief,
+      });
+
+      if (next.kind === "escalate") return escalate("conductor-asked");
+
+      if (next.kind === "answer") {
+        const text = await runAnswerStep({
           model: input.model,
           persona,
-          tools: input.tools,
           ask: input.ask,
           summary: state.summary,
           steps,
-          maxSteps: input.maxSteps,
           ...(input.signal ? { signal: input.signal } : {}),
-        })
-      : { ok: true as const, plan: { kind: "answer", brief: "reply" } as Plan };
+        });
+        const empty = judgeAnswer(text);
+        if (empty) return escalate(empty);
+        steps.push({ index: steps.length, kind: "answer", brief: next.brief, text });
+        emit({ type: "answer", text });
+        await commit(input, state, { ask: input.ask, answer: text, at: Date.now() }, emit);
+        return { text, handledBy: "device", steps, trace };
+      }
 
-    if (!outcome.ok) return escalate("plan-invalid");
-    const next = outcome.plan;
-    emit({
-      type: "plan",
-      index: steps.length,
-      kind: next.kind === "escalate" ? "answer" : next.kind,
-      ...(next.tool ? { tool: next.tool } : {}),
-      brief: next.brief,
-    });
+      const tool = input.tools[next.tool ?? ""];
+      if (!tool) return escalate("plan-invalid");
 
-    if (next.kind === "escalate") return escalate("conductor-asked");
-
-    if (next.kind === "answer") {
-      const text = await runAnswerStep({
+      const started = Date.now();
+      const done = await runToolStep({
         model: input.model,
         persona,
+        tool,
+        brief: next.brief,
         ask: input.ask,
-        summary: state.summary,
-        steps,
+        confirm: async (request) => {
+          const approved = await input.confirm(request);
+          emit({ type: "confirm", tool: request.tool, approved });
+          return approved;
+        },
         ...(input.signal ? { signal: input.signal } : {}),
       });
-      const empty = judgeAnswer(text);
-      if (empty) return escalate(empty);
-      steps.push({ index: steps.length, kind: "answer", brief: next.brief, text });
-      emit({ type: "answer", text });
-      await commit(input, state, { ask: input.ask, answer: text, at: Date.now() }, emit);
-      return { text, handledBy: "device", steps, trace };
+
+      if (done.text !== undefined) {
+        // The worker answered instead of calling. Treat it as a weak answer step.
+        steps.push({ index: steps.length, kind: "answer", brief: next.brief, text: done.text });
+        const empty = judgeAnswer(done.text);
+        if (empty) return escalate(empty);
+        emit({ type: "answer", text: done.text });
+        await commit(input, state, { ask: input.ask, answer: done.text, at: Date.now() }, emit);
+        return { text: done.text, handledBy: "device", steps, trace };
+      }
+
+      const repeat = judgeStep({
+        steps,
+        maxSteps: input.maxSteps,
+        next: { tool: tool.name, input: done.input },
+      });
+      if (repeat === "repeated-tool-call") return escalate(repeat);
+
+      steps.push({
+        index: steps.length,
+        kind: "tool",
+        brief: next.brief,
+        tool: tool.name,
+        input: done.input,
+        result: done.result,
+        skipped: done.skipped,
+      });
+      emit({
+        type: "tool",
+        tool: tool.name,
+        input: done.input,
+        result: done.result,
+        ms: Date.now() - started,
+      });
     }
-
-    const tool = input.tools[next.tool ?? ""];
-    if (!tool) return escalate("plan-invalid");
-
-    const started = Date.now();
-    const done = await runToolStep({
-      model: input.model,
-      persona,
-      tool,
-      brief: next.brief,
-      ask: input.ask,
-      confirm: async (request) => {
-        const approved = await input.confirm(request);
-        emit({ type: "confirm", tool: request.tool, approved });
-        return approved;
-      },
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
-
-    if (done.text !== undefined) {
-      // The worker answered instead of calling. Treat it as a weak answer step.
-      steps.push({ index: steps.length, kind: "answer", brief: next.brief, text: done.text });
-      const empty = judgeAnswer(done.text);
-      if (empty) return escalate(empty);
-      emit({ type: "answer", text: done.text });
-      await commit(input, state, { ask: input.ask, answer: done.text, at: Date.now() }, emit);
-      return { text: done.text, handledBy: "device", steps, trace };
-    }
-
-    const repeat = judgeStep({
-      steps,
-      maxSteps: input.maxSteps,
-      next: { tool: tool.name, input: done.input },
-    });
-    if (repeat === "repeated-tool-call") return escalate(repeat);
-
-    steps.push({
-      index: steps.length,
-      kind: "tool",
-      brief: next.brief,
-      tool: tool.name,
-      input: done.input,
-      result: done.result,
-      skipped: done.skipped,
-    });
-    emit({
-      type: "tool",
-      tool: tool.name,
-      input: done.input,
-      result: done.result,
-      ms: Date.now() - started,
-    });
   }
 };
+
+const isAbort = (error: unknown): boolean =>
+  (error as { name?: string } | null)?.name === "AbortError";
+
+const describeError = (error: unknown): string =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
 const commit = async (
   input: TurnInput,

@@ -48,6 +48,8 @@ type FallbackRequest = {
   recent: Exchange[];
   steps: StepRecord[];
   reason: EscalationReason;
+  /** The model or provider error message, when `reason` is "model-error". */
+  error?: string;
   signal?: AbortSignal;
 };
 
@@ -58,7 +60,8 @@ type EscalationReason =
   | "repeated-tool-call"
   | "empty-answer"
   | "plan-invalid"
-  | "conductor-asked";
+  | "conductor-asked"
+  | "model-error";
 
 /** One stone thrown: what the conductor decided and what the worker did. */
 type StepRecord = {
@@ -81,7 +84,7 @@ type TraceEvent =
   | { type: "confirm"; tool: string; approved: boolean }
   | { type: "tool"; tool: string; input: unknown; result: string; ms: number }
   | { type: "answer"; text: string }
-  | { type: "escalate"; reason: EscalationReason }
+  | { type: "escalate"; reason: EscalationReason; error?: string }
   | { type: "remember"; summary: string }
   | { type: "budget"; label: string; tokens: number; limit: number };
 
