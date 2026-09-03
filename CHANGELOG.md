@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- An example Expo app in `example/`, typechecked in CI so it cannot drift from the public API. It
+  is not part of the published package.
+
 ## [0.0.3] - 2026-09-03
 
 ### Changed

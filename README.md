@@ -146,6 +146,13 @@ Early. The core loop, compression, memory, judge, and eval runner are here and t
 scripted model. On-device runs and the Apple provider adapter are next. See `docs/` for the
 research behind the design.
 
+## Example
+
+[`example/`](./example) is a one-screen Expo app that runs a real turn on the phone's own model —
+three tools, a confirmation prompt before anything writes, and the step log on screen. It needs an
+iPhone with Apple Intelligence on iOS 26 and a development build; the Simulator has no on-device
+model.
+
 ## Contributing
 
 Issues and pull requests are welcome. `CONTRIBUTING.md` covers the setup, what a good change looks
