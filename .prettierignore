@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+
+# Conductor workspace scratch (gitignored; not ours to format)
+.context/
