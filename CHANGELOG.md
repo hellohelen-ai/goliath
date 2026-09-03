@@ -8,6 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-09-03
+
+No changes to the library. This is the first release published from CI, and it exists to prove
+that path works end to end.
+
+### Added
+
+- `CHANGELOG.md` now ships inside the package.
+
+### Changed
+
+- Releases are published from GitHub Actions over OIDC trusted publishing and carry a provenance
+  attestation. No npm token exists for this package. Verify with `npm audit signatures`.
+
 ## [0.0.1] - 2026-09-03
 
 First release.
@@ -31,5 +45,6 @@ First release.
 - An eval runner scoring fixtures with `pass^k` over repeated runs, per-fixture escalation
   expectations, and forbidden words.
 
-[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.0.1...HEAD
+[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/hellohelen-ai/goliath/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/hellohelen-ai/goliath/releases/tag/v0.0.1
