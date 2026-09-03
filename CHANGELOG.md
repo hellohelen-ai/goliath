@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Changed
+
+- Build with TypeScript 7. Emitted JavaScript is byte-identical; only declaration property order
+  changes.
+
 ## [0.0.2] - 2026-09-03
 
 No changes to the library. This is the first release published from CI, and it exists to prove
