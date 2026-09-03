@@ -4,8 +4,13 @@
  * strings get cut. No model call, so this runs on every result.
  */
 const DEFAULT_MAX_CHARS = 600;
-const MAX_ITEMS = 8;
+/** Long lists show the first items, a count, and the last items (deepagents, Grok Bot). */
+const HEAD_ITEMS = 5;
+const TAIL_ITEMS = 2;
+const MAX_ITEMS = HEAD_ITEMS + TAIL_ITEMS;
 const MAX_VALUE_CHARS = 80;
+/** A line that looks like a failure survives any cut (OpenClaw's diagnostic tail). */
+const ERROR_LINE = /\b(error|exception|failed|fatal|denied|timed?\s?out)\b/i;
 
 const clip = (text: string, max: number): string =>
   text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
@@ -38,8 +43,17 @@ const summarizeToolResult = (value: unknown, maxChars = DEFAULT_MAX_CHARS): stri
   if (typeof value === "string") return value.trim() ? clip(value, maxChars) : "(no output)";
   if (Array.isArray(value)) {
     if (value.length === 0) return "none";
-    const shown = value.slice(0, MAX_ITEMS).map((item, i) => `${i + 1}. ${lineFor(item)}`);
-    if (value.length > MAX_ITEMS) shown.push(`…and ${value.length - MAX_ITEMS} more`);
+    const line = (item: unknown, i: number) => `${i + 1}. ${lineFor(item)}`;
+    if (value.length <= MAX_ITEMS) return clip(value.map(line).join("\n"), maxChars);
+    const head = value.slice(0, HEAD_ITEMS).map(line);
+    const tail = value
+      .slice(-TAIL_ITEMS)
+      .map((item, i) => line(item, value.length - TAIL_ITEMS + i));
+    const omitted = value
+      .slice(HEAD_ITEMS, -TAIL_ITEMS)
+      .map((item, i) => line(item, HEAD_ITEMS + i))
+      .filter((text) => ERROR_LINE.test(text));
+    const shown = [...head, `… ${value.length - MAX_ITEMS} omitted`, ...omitted, ...tail];
     return clip(shown.join("\n"), maxChars);
   }
   if (isRecord(value)) {

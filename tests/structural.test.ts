@@ -12,10 +12,29 @@ describe("summarizeToolResult", () => {
     );
   });
 
-  test("long arrays are cut with a count", () => {
+  test("long arrays show a head, an omitted count, and a tail", () => {
     const text = summarizeToolResult(Array.from({ length: 12 }, (_, i) => `item ${i}`));
+    expect(text.split("\n")).toEqual([
+      "1. item 0",
+      "2. item 1",
+      "3. item 2",
+      "4. item 3",
+      "5. item 4",
+      "… 5 omitted",
+      "11. item 10",
+      "12. item 11",
+    ]);
+  });
+
+  test("an error line in the omitted middle survives the cut", () => {
+    const items = Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      status: i === 9 ? "failed: quota" : "ok",
+    }));
+    const text = summarizeToolResult(items);
+    expect(text).toContain("10. id: 9, status: failed: quota");
+    expect(text).toContain("… 13 omitted");
     expect(text.split("\n")).toHaveLength(9);
-    expect(text).toEndWith("…and 4 more");
   });
 
   test("records list their fields, one per line", () => {
