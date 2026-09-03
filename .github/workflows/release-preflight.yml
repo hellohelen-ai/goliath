@@ -1,0 +1,62 @@
+name: release-preflight
+
+# Software Mansion's habit: pack first, publish later. This builds the exact tarball a
+# release would push and uploads it as an artifact, so you can install those bytes into a
+# real project before you tag anything. It has no id-token permission and never publishes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+
+      - name: Pack
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tarball="$(find "$RUNNER_TEMP" -name '*.tgz' -maxdepth 1 | head -1)"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+          echo "### Tarball" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tar -tzf "$tarball" | sed 's|^package/||' | sort >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the packed bytes into a clean project
+        run: |
+          work="$RUNNER_TEMP/smoke"
+          mkdir -p "$work" && cd "$work"
+          echo '{"name":"smoke","type":"module","private":true}' > package.json
+          npm i "$TARBALL" ai@^7 zod@^4 --silent
+          node --input-type=module -e "
+            const m = await import('@hellohelen-ai/goliath');
+            const t = await import('@hellohelen-ai/goliath/testing');
+            for (const n of ['createGoliath','defineTool','inMemory']) {
+              if (typeof m[n] !== 'function') throw new Error('missing export: ' + n);
+            }
+            if (typeof t.fakeModel !== 'function') throw new Error('missing export: fakeModel');
+            console.log('entry points resolve; exports present');
+          "
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tarball
+          path: ${{ env.TARBALL }}
+          if-no-files-found: error

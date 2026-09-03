@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # changelog and release notes need history
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -50,6 +51,21 @@ jobs:
       # provenance attestation alongside the tarball.
       # `prepublishOnly` runs `bun run check`, which builds dist/ before packing.
       - run: npm publish
+
+      - name: Read the published version back from the registry
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            got="$(npm view "@hellohelen-ai/goliath@$version" version 2>/dev/null || true)"
+            if [ "$got" = "$version" ]; then
+              echo "registry serves $version"
+              npm view "@hellohelen-ai/goliath@$version" dist.attestations
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Published, but the registry did not serve $version within five minutes." >&2
+          exit 1
 
       - name: Extract this version's changelog entry
         run: |

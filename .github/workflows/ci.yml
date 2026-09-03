@@ -13,8 +13,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run check
+
+  # Reanimated's rule: a change to the library is a change someone downstream reads about.
+  # Add `no changelog` to the PR if it genuinely does not need an entry.
+  changelog:
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no changelog')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require an Unreleased entry when src/ changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD)"
+          echo "$changed" | sed 's/^/  /'
+
+          if ! echo "$changed" | grep -q '^src/'; then
+            echo "No src/ changes — changelog not required."
+            exit 0
+          fi
+
+          if ! echo "$changed" | grep -qx 'CHANGELOG.md'; then
+            echo "::error::This PR changes src/ but does not touch CHANGELOG.md. Add an entry under '## [Unreleased]', or label the PR 'no changelog'."
+            exit 1
+          fi
+
+          # The entry has to be in the Unreleased section, not tacked onto a shipped version.
+          added="$(git diff -U0 "$BASE_SHA"...HEAD -- CHANGELOG.md | grep '^+' | grep -v '^+++' || true)"
+          unreleased="$(awk '/^## \[Unreleased\]/{f=1;next} f&&/^## \[/{exit} f' CHANGELOG.md)"
+          found=0
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            entry="${line#+}"
+            case "$entry" in \#*|"") continue;; esac
+            if printf '%s\n' "$unreleased" | grep -Fqx -- "$entry"; then found=1; break; fi
+          done <<< "$added"
+
+          if [ "$found" -eq 0 ]; then
+            echo "::error::CHANGELOG.md changed, but no new line landed under '## [Unreleased]'."
+            exit 1
+          fi
+          echo "Unreleased entry present."
