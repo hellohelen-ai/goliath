@@ -21,13 +21,18 @@ type Goliath = {
 const createGoliath = (config: GoliathConfig): Goliath => {
   const memory = config.memory ?? inMemory();
   const confirm = config.confirm ?? (async () => true);
+  // The conductor picks by name, so the map is keyed by each tool's own name,
+  // whatever the app called the property.
+  const tools = Object.fromEntries(
+    Object.values(config.tools ?? {}).map((tool) => [tool.name, tool]),
+  );
 
   return {
     run: (ask, options = {}) =>
       runTurn({
         ask,
         model: config.model,
-        tools: config.tools ?? {},
+        tools,
         memory,
         confirm,
         ...(config.fallback ? { fallback: config.fallback } : {}),

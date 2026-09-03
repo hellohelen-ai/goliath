@@ -11,6 +11,8 @@ type EvalOutcome = {
   text: string;
   reasons: string[];
   ms: number;
+  /** Stones thrown. An efficiency signal, logged but never a failure. */
+  steps: number;
 };
 
 type EvalReport = {
@@ -19,6 +21,8 @@ type EvalReport = {
   total: number;
   onDevice: number;
   escalated: number;
+  /** Mean steps per task, to two decimals. */
+  meanSteps: number;
 };
 
 /** A tiny task list every fixture runs against. Fresh per run. */
@@ -83,6 +87,7 @@ const runEvals = async (input: {
       text: result.text,
       reasons,
       ms: Date.now() - started,
+      steps: result.steps.length,
     });
   }
 
@@ -92,17 +97,20 @@ const runEvals = async (input: {
     total: outcomes.length,
     onDevice: outcomes.filter((o) => o.handledBy === "device").length,
     escalated: outcomes.filter((o) => o.handledBy === "cloud").length,
+    meanSteps: outcomes.length
+      ? Math.round((outcomes.reduce((sum, o) => sum + o.steps, 0) / outcomes.length) * 100) / 100
+      : 0,
   };
 };
 
 const formatReport = (report: EvalReport): string => {
   const lines = report.outcomes.map(
     (o) =>
-      `${o.pass ? "PASS" : "FAIL"}  ${o.id.padEnd(18)} ${o.handledBy.padEnd(6)} ${String(o.ms).padStart(5)}ms  ${o.reasons.join("; ")}`,
+      `${o.pass ? "PASS" : "FAIL"}  ${o.id.padEnd(18)} ${o.handledBy.padEnd(6)} ${String(o.steps).padStart(2)} steps ${String(o.ms).padStart(5)}ms  ${o.reasons.join("; ")}`,
   );
   lines.push("");
   lines.push(
-    `${report.passed}/${report.total} passed · ${report.onDevice} on device · ${report.escalated} escalated`,
+    `${report.passed}/${report.total} passed · ${report.onDevice} on device · ${report.escalated} escalated · ${report.meanSteps} steps/task`,
   );
   return lines.join("\n");
 };

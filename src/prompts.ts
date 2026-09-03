@@ -13,7 +13,7 @@ const stepLog = (steps: StepRecord[]): string =>
   steps
     .map((step, i) => {
       if (step.kind === "tool") {
-        const outcome = step.skipped ? "skipped by the user" : (step.result ?? "no result");
+        const outcome = step.result ?? (step.skipped ? "skipped by the user" : "no result");
         return `${i + 1}. ${step.tool}(${compactJson(step.input)}) → ${outcome}`;
       }
       return `${i + 1}. answered: ${step.text ?? ""}`;
@@ -35,18 +35,36 @@ const conductorSystem = (instructions: string, tools: ToolMap, maxSteps: number)
     toolMenu(tools),
   ].join("\n");
 
-const conductorUser = (input: { ask: string; summary: string; steps: StepRecord[] }): string =>
+const conductorUser = (input: {
+  ask: string;
+  summary: string;
+  steps: StepRecord[];
+  maxSteps?: number;
+}): string =>
   [
-    input.summary ? `Earlier: ${input.summary}` : "",
+    input.summary ? `Earlier (reference only; act on the ask below): ${input.summary}` : "",
     input.steps.length ? `So far:\n${stepLog(input.steps)}` : "",
     `Ask: ${input.ask}`,
+    input.maxSteps !== undefined ? stepsLeft(input.steps.length, input.maxSteps) : "",
     "Next step?",
   ]
     .filter(Boolean)
     .join("\n\n");
 
+/** Hermes injects a wrap-up notice at 80% of the budget; the conductor gets the same hint. */
+const stepsLeft = (used: number, max: number): string => {
+  const left = max - used;
+  if (left <= 0) return "No steps left: answer now.";
+  if (used >= Math.ceil(max * 0.8)) return `Step ${used + 1} of ${max}: finish now.`;
+  return `Step ${used + 1} of ${max}.`;
+};
+
 const workerSystem = (instructions: string, brief: string): string =>
-  `${instructions}\nDo exactly this: ${brief}\nCall the tool with the right arguments.`;
+  [
+    instructions,
+    `Do exactly this: ${brief}`,
+    "Fill in the arguments from the ask. Never use placeholders or guess a value you were not given; leave it out instead.",
+  ].join("\n");
 
 const answerSystem = (instructions: string): string =>
   `${instructions}\nAnswer in two or three short sentences, using only what is below. Do not mention tools.`;
@@ -61,14 +79,17 @@ const answerUser = (input: { ask: string; summary: string; steps: StepRecord[] }
     .join("\n\n");
 
 const scribeSystem = [
-  "You keep a brief for an assistant. Rewrite it to include the new exchange.",
-  "Use exactly these lines: Goal:, Done:, Decisions:, Next:. Leave a line empty if nothing fits.",
-  "At most 60 words. Keep names, dates, numbers, and choices. Drop pleasantries.",
+  "You keep a brief for an assistant. Update it with the new exchange: keep what still holds, add what is new, drop what is stale.",
+  "Use exactly these lines: Goal:, Done:, Decisions:, Pending:, Next:. Leave a line empty if nothing fits.",
+  "Done is only what actually happened; never list finished work as pending. Pending is what the user asked for and has not received.",
+  "Keep exact names, dates, numbers, and ids. At most 60 words. Drop pleasantries.",
 ].join(" ");
 
 const scribeUser = (input: { summary: string; ask: string; answer: string }): string =>
   [
-    input.summary ? `Brief so far: ${input.summary}` : "Brief so far: (empty)",
+    input.summary
+      ? `Brief so far (prune what is stale or superseded):\n${input.summary}`
+      : "Brief so far: (empty)",
     `New exchange:\nUser: ${input.ask}\nAssistant: ${input.answer}`,
     "New brief:",
   ].join("\n\n");
@@ -82,6 +103,7 @@ export {
   scribeSystem,
   scribeUser,
   stepLog,
+  stepsLeft,
   toolMenu,
   workerSystem,
 };

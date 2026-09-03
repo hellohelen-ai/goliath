@@ -7,6 +7,7 @@ type DefineToolArgs<INPUT, OUTPUT> = {
   parameters: z.ZodType<INPUT>;
   writes?: boolean;
   execute: (input: INPUT, context: ToolContext) => Promise<OUTPUT> | OUTPUT;
+  toModelOutput?: (output: OUTPUT) => string;
 };
 
 /**

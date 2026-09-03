@@ -51,17 +51,31 @@ const runToolStep = async (input: {
   }
 
   if (input.tool.writes) {
-    const approved = await input.confirm({
+    const decision = await input.confirm({
       tool: input.tool.name,
       input: args,
       brief: input.brief,
     });
-    if (!approved) return { ok: true, input: args, result: "skipped by the user", skipped: true };
+    const approved = typeof decision === "boolean" ? decision : decision.approved;
+    if (!approved) {
+      const reason = typeof decision === "object" && decision.reason ? `: ${decision.reason}` : "";
+      // Named like deepagents' rejection message so the model reads it as a
+      // decision, not an error to work around.
+      return {
+        ok: true,
+        input: args,
+        result: `declined by the user${reason}. Do not retry unless asked.`,
+        skipped: true,
+      };
+    }
   }
 
   const context: ToolContext = input.signal ? { signal: input.signal } : {};
   const output = await input.tool.execute(args, context);
-  return { ok: true, input: args, result: summarizeToolResult(output), skipped: false };
+  const shaped = input.tool.toModelOutput
+    ? input.tool.toModelOutput(output)
+    : summarizeToolResult(output);
+  return { ok: true, input: args, result: shaped, skipped: false };
 };
 
 /** A tool with no parameters needs no model call at all. Apple says the same: run it directly. */
@@ -75,12 +89,15 @@ const runAnswerStep = async (input: {
   ask: string;
   summary: string;
   steps: StepRecord[];
+  /** Appended on the one retry after an empty answer. */
+  nudge?: string;
   signal?: AbortSignal;
 }): Promise<string> => {
+  const prompt = answerUser({ ask: input.ask, summary: input.summary, steps: input.steps });
   const result = await generateText({
     model: input.model,
     system: answerSystem(input.instructions),
-    prompt: answerUser({ ask: input.ask, summary: input.summary, steps: input.steps }),
+    prompt: input.nudge ? `${prompt}\n\n${input.nudge}` : prompt,
     ...(input.signal ? { abortSignal: input.signal } : {}),
   });
   return result.text.trim();

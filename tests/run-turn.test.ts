@@ -77,7 +77,7 @@ describe("runTurn", () => {
 
     expect(tasks.length).toBe(before);
     expect(result.steps[0]?.skipped).toBe(true);
-    expect(result.steps[0]?.result).toBe("skipped by the user");
+    expect(result.steps[0]?.result).toBe("declined by the user. Do not retry unless asked.");
     expect(result.trace.some((e) => e.type === "confirm" && e.approved === false)).toBe(true);
   });
 

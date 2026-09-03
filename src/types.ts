@@ -12,6 +12,11 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
   /** True when the tool changes something. Goliath asks before running it. */
   writes?: boolean;
   execute: (input: INPUT, context: ToolContext) => Promise<OUTPUT> | OUTPUT;
+  /**
+   * What the model sees. The app keeps the full output; the model gets this
+   * string. Default: `key: value` lines capped at 600 characters.
+   */
+  toModelOutput?: (output: OUTPUT) => string;
 };
 
 type ToolContext = {
@@ -77,12 +82,19 @@ type StepRecord = {
   text?: string;
 };
 
-type Confirm = (request: { tool: string; input: unknown; brief: string }) => Promise<boolean>;
+type ConfirmDecision = boolean | { approved: boolean; reason?: string };
+
+/** Asked before a tool that writes runs. A reason on a decline reaches the conductor. */
+type Confirm = (request: {
+  tool: string;
+  input: unknown;
+  brief: string;
+}) => Promise<ConfirmDecision>;
 
 type TraceEvent =
   | { type: "recall"; summary: string; recent: number }
   | { type: "plan"; index: number; kind: StepRecord["kind"]; tool?: string; brief: string }
-  | { type: "confirm"; tool: string; approved: boolean }
+  | { type: "confirm"; tool: string; approved: boolean; reason?: string }
   | { type: "tool"; tool: string; input: unknown; result: string; ms: number }
   | { type: "answer"; text: string }
   | { type: "escalate"; reason: EscalationReason; error?: string }
@@ -125,6 +137,7 @@ type GoliathConfig = {
 export type {
   Compressor,
   Confirm,
+  ConfirmDecision,
   EscalationReason,
   Exchange,
   Fallback,

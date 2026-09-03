@@ -117,14 +117,19 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       if (next.kind === "escalate") return escalate("conductor-asked");
 
       if (next.kind === "answer") {
-        const text = await runAnswerStep({
+        const answerInput = {
           model: input.model,
           instructions,
           ask: input.ask,
           summary: state.summary,
           steps,
           ...(input.signal ? { signal: input.signal } : {}),
-        });
+        };
+        let text = await runAnswerStep(answerInput);
+        if (judgeAnswer(text)) {
+          // eve, OpenClaw, and Hermes all reissue once with a nudge before giving up.
+          text = await runAnswerStep({ ...answerInput, nudge: EMPTY_ANSWER_NUDGE });
+        }
         const empty = judgeAnswer(text);
         if (empty) return escalate(empty);
         steps.push({ index: steps.length, kind: "answer", brief: next.brief, text });
@@ -144,9 +149,11 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
         brief: next.brief,
         ask: input.ask,
         confirm: async (request) => {
-          const approved = await input.confirm(request);
-          emit({ type: "confirm", tool: request.tool, approved });
-          return approved;
+          const decision = await input.confirm(request);
+          const approved = typeof decision === "boolean" ? decision : decision.approved;
+          const reason = typeof decision === "object" ? decision.reason : undefined;
+          emit({ type: "confirm", tool: request.tool, approved, ...(reason ? { reason } : {}) });
+          return decision;
         },
         ...(input.signal ? { signal: input.signal } : {}),
       });
@@ -179,6 +186,9 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
     }
   }
 };
+
+const EMPTY_ANSWER_NUDGE =
+  "Your previous reply was empty. Answer now from what you found above; do not mention this notice.";
 
 const isAbort = (error: unknown): boolean =>
   (error as { name?: string } | null)?.name === "AbortError";

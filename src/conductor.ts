@@ -52,11 +52,13 @@ const plan = async (input: {
   const system = conductorSystem(input.instructions, input.tools, input.maxSteps);
   const limit = Math.floor(input.window * PROMPT_SHARE);
   let steps = input.steps;
-  let prompt = conductorUser({ ask: input.ask, summary: input.summary, steps });
+  const render = (log: StepRecord[]) =>
+    conductorUser({ ask: input.ask, summary: input.summary, steps: log, maxSteps: input.maxSteps });
+  let prompt = render(steps);
   let tokens = estimateTokens(system) + estimateTokens(prompt);
   if (tokens > limit) {
     steps = trimSteps(steps);
-    prompt = conductorUser({ ask: input.ask, summary: input.summary, steps });
+    prompt = render(steps);
     tokens = estimateTokens(system) + estimateTokens(prompt);
     input.emit?.({ type: "budget", label: "conductor", tokens, limit });
   }
