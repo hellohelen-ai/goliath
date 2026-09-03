@@ -5,10 +5,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/helen-ai-personal-assistant/goliath.git"
+    "url": "git+https://github.com/hellohelen-ai/goliath.git"
   },
-  "homepage": "https://github.com/helen-ai-personal-assistant/goliath#readme",
-  "bugs": "https://github.com/helen-ai-personal-assistant/goliath/issues",
+  "homepage": "https://github.com/hellohelen-ai/goliath#readme",
+  "bugs": "https://github.com/hellohelen-ai/goliath/issues",
   "keywords": [
     "on-device",
     "agent",
