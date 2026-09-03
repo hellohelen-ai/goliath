@@ -2,6 +2,10 @@ export { createGoliath, DEFAULT_MAX_STEPS, DEFAULT_WINDOW } from "./create-golia
 export type { Goliath, RunOptions } from "./create-goliath.js";
 export { defineTool } from "./tools/define-tool.js";
 export { inMemory, emptyMemory } from "./memory/in-memory.js";
+export { keyValueMemory } from "./memory/key-value.js";
+export type { KeyValueStore } from "./memory/key-value.js";
+export { httpFallback } from "./fallback/http-fallback.js";
+export type { HttpFallbackOptions, FallbackPayload } from "./fallback/http-fallback.js";
 export { summarizeToolResult } from "./compress/structural.js";
 export { estimateTokens, fitWithin, transcriptTokens } from "./budget.js";
 export { planSchema } from "./conductor.js";

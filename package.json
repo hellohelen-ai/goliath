@@ -46,7 +46,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "bun run typecheck && bun run format:check && bun run test && bun run build",
-    "prepublishOnly": "bun run check"
+    "prepublishOnly": "bun run check",
+    "evals": "bun run evals/cli.ts"
   },
   "peerDependencies": {
     "ai": "^7.0.0",
