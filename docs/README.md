@@ -1,9 +1,11 @@
 # Design notes
 
-Three research briefs on the platform and eight on other agent harnesses, written 2026-09-02, sit
-under `research/`. Each claim in them carries a source. [`research/harness-survey.md`](research/harness-survey.md)
-is the synthesis of the eight. This page is the short version: the rules Goliath follows, where
-each comes from, and where it lives in the code.
+Three research briefs on the platform, eight on other agent harnesses, and five on what was built
+for small on-device models sit under `research/`. Each claim in them carries a source.
+[`research/harness-survey.md`](research/harness-survey.md) synthesises the eight harnesses;
+[`research/round2/README.md`](research/round2/README.md) synthesises the on-device round. This page
+is the short version: the rules Goliath follows, where each comes from, and where it lives in
+the code.
 
 | Brief                                                                                  | What it settles                                                                                                                                                                                                                                                 |
 | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44,6 +46,21 @@ each comes from, and where it lives in the code.
 | The brief updates in place, has a Pending slot, and never lists finished work as pending  | eve checkpoint prompt, OpenClaw safeguard headings, Hermes iterative update                    | `prompts.ts` `scribeSystem`               |
 | The conductor sees the step budget and a finish hint at 80%                               | Hermes's wrap-up notice                                                                        | `prompts.ts` `stepsLeft`                  |
 | Workers never use placeholders or guess a value                                           | deepagents' Haiku profile                                                                      | `prompts.ts` `workerSystem`               |
+
+### Rules borrowed from the on-device round
+
+| Rule                                                                                         | Why                                                                                                                     | Where                                         |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| The plan opens with a one-sentence `why` before the decision                                 | A rationale before the answer is worth ~10 points at sub-3B under constrained decoding; field order is generation order | `conductor.ts` `WHY`                          |
+| Tool names are an enum in the plan schema                                                    | Apple's no-hallucinated-name guarantee holds only for names in the schema                                               | `conductor.ts` `planSchemaFor`                |
+| The ask is the last thing the conductor reads                                                | Small models are recency-biased                                                                                         | `prompts.ts` `conductorUser`                  |
+| Tools declare `requires`; always-needed values arrive as `facts`, not tool steps             | TinyAgent's prerequisite lines; TN3193                                                                                  | `prompts.ts` `prerequisiteRules`, `factLines` |
+| Workers name a missing value instead of inventing it                                         | "Wrong but valid" outputs are invented values                                                                           | `worker.ts` `withMissing`                     |
+| A tool that throws is a result; two in a row escalate                                        | smolagents' error feedback                                                                                              | `worker.ts`, `judge.ts`                       |
+| No fallback still gets a best-effort answer                                                  | smolagents' `provide_final_answer`                                                                                      | `run-turn.ts` `bestEffortAnswer`              |
+| The step log is data, not instructions                                                       | Spotlighting; one in four injections lands on Apple's model                                                             | `prompts.ts` `conductorUser`                  |
+| A guardrail hit stops on device                                                              | Escalating ships the flagged text; most hits on tool output are false positives                                         | `run-turn.ts` `isGuardrail`                   |
+| Fixtures say whether escalation is forbidden, allowed, or expected; the runner scores pass^k | τ2-bench reward basis; τ-bench pass^k                                                                                   | `evals/`                                      |
 
 ## Open questions to settle on a device
 
