@@ -34,8 +34,8 @@ const lineFor = (value: unknown): string => {
 };
 
 const summarizeToolResult = (value: unknown, maxChars = DEFAULT_MAX_CHARS): string => {
-  if (value === undefined) return "done";
-  if (typeof value === "string") return clip(value, maxChars);
+  if (value === undefined || value === null) return "done";
+  if (typeof value === "string") return value.trim() ? clip(value, maxChars) : "(no output)";
   if (Array.isArray(value)) {
     if (value.length === 0) return "none";
     const shown = value.slice(0, MAX_ITEMS).map((item, i) => `${i + 1}. ${lineFor(item)}`);

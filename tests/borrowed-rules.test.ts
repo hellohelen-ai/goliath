@@ -77,6 +77,44 @@ describe("rules borrowed from other harnesses", () => {
     expect(result.steps[0]?.result).toBe("30 events, first: Event 0");
   });
 
+  test("three turns of model errors flip the session to the cloud (Claude Code's 529 rule)", async () => {
+    const dead = fakeModel([]);
+    dead.doGenerate = async () => {
+      throw new Error("guardrailViolation");
+    };
+    let fallbackCalls = 0;
+    const goliath = createGoliath({
+      model: dead,
+      fallback: async () => {
+        fallbackCalls += 1;
+        return { text: "cloud" };
+      },
+    });
+    for (let i = 0; i < 3; i += 1) await goliath.run("hi");
+    expect(goliath.sessionFallback).toBe(true);
+    const calls = dead.calls.length;
+    const result = await goliath.run("hi again");
+    expect(result.handledBy).toBe("cloud");
+    expect(dead.calls.length).toBe(calls); // the device was not asked
+    expect(fallbackCalls).toBe(4);
+  });
+
+  test("an empty tool output is named, never blank (Claude Code)", async () => {
+    const quiet = defineTool({
+      name: "quiet",
+      description: "Says nothing.",
+      parameters: z.object({}),
+      execute: () => "",
+    });
+    const model = fakeModel([
+      { json: { kind: "tool", tool: "quiet", brief: "run it" } },
+      { json: { kind: "answer", brief: "reply" } },
+      { text: "Nothing came back." },
+    ]);
+    const result = await createGoliath({ model, tools: { quiet } }).run("run quiet");
+    expect(result.steps[0]?.result).toBe("(no output)");
+  });
+
   test("the conductor sees the step budget and a finish hint at 80% (Hermes)", () => {
     expect(stepsLeft(0, 5)).toBe("Step 1 of 5.");
     expect(stepsLeft(4, 5)).toBe("Step 5 of 5: finish now.");

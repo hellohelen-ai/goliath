@@ -18,7 +18,13 @@ const planSchema = z.object({
 type Plan = z.infer<typeof planSchema>;
 
 type PlanOutcome =
-  { ok: true; plan: Plan } | { ok: false; reason: "plan-invalid" | "no-such-tool" };
+  { ok: true; plan: Plan } | { ok: false; reason: "plan-invalid" | "no-such-tool"; hint: string };
+
+const PLAN_INVALID_HINT =
+  "Your last reply was not valid JSON with the fields kind, tool, brief. Reply with JSON only.";
+
+const noSuchToolHint = (name: string | undefined, toolNames: string[]): string =>
+  `No such tool available: ${name ?? "(none)"}. Pick one of: ${toolNames.join(", ")}, or answer.`;
 
 /**
  * Apple's window is input plus output, and the overflow error kills the
@@ -46,14 +52,23 @@ const plan = async (input: {
   maxSteps: number;
   window: number;
   emit?: (event: TraceEvent) => void;
+  /** Why the previous plan was rejected, fed back on the one retry. */
+  retryHint?: string;
   signal?: AbortSignal;
 }): Promise<PlanOutcome> => {
   const toolNames = Object.keys(input.tools);
   const system = conductorSystem(input.instructions, input.tools, input.maxSteps);
   const limit = Math.floor(input.window * PROMPT_SHARE);
   let steps = input.steps;
-  const render = (log: StepRecord[]) =>
-    conductorUser({ ask: input.ask, summary: input.summary, steps: log, maxSteps: input.maxSteps });
+  const render = (log: StepRecord[]) => {
+    const base = conductorUser({
+      ask: input.ask,
+      summary: input.summary,
+      steps: log,
+      maxSteps: input.maxSteps,
+    });
+    return input.retryHint ? `${base}\n\n${input.retryHint}` : base;
+  };
   let prompt = render(steps);
   let tokens = estimateTokens(system) + estimateTokens(prompt);
   if (tokens > limit) {
@@ -71,15 +86,17 @@ const plan = async (input: {
       ...(input.signal ? { abortSignal: input.signal } : {}),
     });
     const next = result.output;
-    if (!next) return { ok: false, reason: "plan-invalid" };
+    if (!next) return { ok: false, reason: "plan-invalid", hint: PLAN_INVALID_HINT };
     if (next.kind === "tool" && (!next.tool || !toolNames.includes(next.tool))) {
-      return { ok: false, reason: "no-such-tool" };
+      return { ok: false, reason: "no-such-tool", hint: noSuchToolHint(next.tool, toolNames) };
     }
     return { ok: true, plan: next };
   } catch (error) {
     // Only a malformed plan is the model's mistake to retry. Guardrails, a dead
     // session, or an unavailable model propagate so the turn escalates as model-error.
-    if (NoObjectGeneratedError.isInstance(error)) return { ok: false, reason: "plan-invalid" };
+    if (NoObjectGeneratedError.isInstance(error)) {
+      return { ok: false, reason: "plan-invalid", hint: PLAN_INVALID_HINT };
+    }
     throw error;
   }
 };

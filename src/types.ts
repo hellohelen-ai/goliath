@@ -79,6 +79,8 @@ type StepRecord = {
   /** The compressed tool result the transcript carries forward. */
   result?: string;
   skipped?: boolean;
+  /** Served from an earlier identical step; nothing ran. */
+  cached?: boolean;
   text?: string;
 };
 

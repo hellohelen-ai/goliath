@@ -84,7 +84,8 @@ describe("runTurn", () => {
   test("a repeated tool call escalates to the fallback with the step log", async () => {
     const model = fakeModel([
       { json: { kind: "tool", tool: "listTasks", brief: "look" } },
-      { json: { kind: "tool", tool: "listTasks", brief: "look again" } },
+      { json: { kind: "tool", tool: "listTasks", brief: "look again" } }, // served from cache
+      { json: { kind: "tool", tool: "listTasks", brief: "and again" } }, // a real loop
       { text: "brief after cloud" },
     ]);
     let received: unknown;
@@ -111,7 +112,9 @@ describe("runTurn", () => {
     expect(result.text).toBe("The cloud finished it.");
     expect(result.trace.at(-2)).toMatchObject({ type: "escalate", reason: "repeated-tool-call" });
     expect(received).toMatchObject({ reason: "repeated-tool-call", ask: "plan my week" });
-    expect((received as { steps: unknown[] }).steps).toHaveLength(1);
+    const steps = (received as { steps: { cached?: boolean; result?: string }[] }).steps;
+    expect(steps).toHaveLength(2);
+    expect(steps[1]).toMatchObject({ cached: true, result: "same as step 1" });
   });
 
   test("an invalid plan is retried once, then escalates; no fallback returns empty", async () => {
@@ -124,6 +127,22 @@ describe("runTurn", () => {
     expect(result.text).toBe("");
     expect(result.trace.at(-1)).toMatchObject({ type: "escalate", reason: "plan-invalid" });
     expect(model.calls).toHaveLength(2);
+    // The retry told the model what was wrong (Claude Code feeds the validation error back).
+    expect(JSON.stringify(model.calls[1]?.prompt)).toContain("was not valid JSON");
+  });
+
+  test("a plan naming a missing tool retries with the tool list", async () => {
+    const model = fakeModel([
+      { json: { kind: "tool", tool: "sendEmail", brief: "email it" } },
+      { json: { kind: "answer", brief: "reply" } },
+      { text: "I cannot email, but here is your list." },
+    ]);
+    const goliath = createGoliath({ model, tools: { listTasks } });
+    const result = await goliath.run("email my list");
+    expect(result.text).toBe("I cannot email, but here is your list.");
+    expect(JSON.stringify(model.calls[1]?.prompt)).toContain(
+      "No such tool available: sendEmail. Pick one of: listTasks",
+    );
   });
 
   test("a plan that fails once and then parses carries on", async () => {

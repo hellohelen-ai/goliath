@@ -79,6 +79,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
 
   async function stones(): Promise<RunResult> {
     let planRetried = false;
+    let retryHint: string | undefined;
     for (;;) {
       const stall = judgeStep({ steps, maxSteps: input.maxSteps });
       if (stall) return escalate(stall);
@@ -94,17 +95,21 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
             maxSteps: input.maxSteps,
             window: input.window,
             emit,
+            ...(retryHint ? { retryHint } : {}),
             ...(input.signal ? { signal: input.signal } : {}),
           })
         : { ok: true as const, plan: { kind: "answer", brief: "reply" } as Plan };
 
       if (!outcome.ok) {
-        // Small models drop a brace now and then. One more try is cheap and
+        // Small models drop a brace now and then. One more try, told what was
+        // wrong (Claude Code feeds the validation error back), is cheap and
         // usually enough; two failures in a row is a real signal.
         if (planRetried) return escalate("plan-invalid");
         planRetried = true;
+        retryHint = outcome.hint;
         continue;
       }
+      retryHint = undefined;
       const next = outcome.plan;
       emit({
         type: "plan",
@@ -142,6 +147,30 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       if (!tool) return escalate("plan-invalid");
 
       const started = Date.now();
+      // Claude Code answers an identical re-read with a stub instead of the
+      // file. A first repeat of a read-only tool gets the earlier result back
+      // with no model call and no execution; a second repeat is a real loop.
+      const cached = !tool.writes ? findRepeatOfReadOnly(steps, tool.name) : undefined;
+      if (cached) {
+        const record: StepRecord = {
+          index: steps.length,
+          kind: "tool",
+          brief: next.brief,
+          tool: tool.name,
+          input: cached.input,
+          result: `same as step ${cached.index + 1}`,
+          cached: true,
+        };
+        steps.push(record);
+        emit({
+          type: "tool",
+          tool: tool.name,
+          input: cached.input,
+          result: record.result ?? "",
+          ms: 0,
+        });
+        continue;
+      }
       const done = await runToolStep({
         model: input.model,
         instructions,
@@ -185,6 +214,20 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       });
     }
   }
+};
+
+/**
+ * The most recent step with this read-only tool, when no step has already
+ * been served from cache for it. Argument equality is checked by the judge
+ * after the worker runs; here the tool name alone is the signal, because a
+ * no-argument tool never reaches the worker.
+ */
+const findRepeatOfReadOnly = (steps: StepRecord[], toolName: string): StepRecord | undefined => {
+  const same = steps.filter((s) => s.kind === "tool" && s.tool === toolName);
+  const last = same.at(-1);
+  if (!last || last.cached) return undefined;
+  if (last.input !== undefined && Object.keys(last.input as object).length > 0) return undefined;
+  return last;
 };
 
 const EMPTY_ANSWER_NUDGE =
