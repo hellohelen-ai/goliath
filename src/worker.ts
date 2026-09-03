@@ -1,20 +1,25 @@
-import { generateText, stepCountIs, type LanguageModel } from "ai";
+import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
+import { z } from "zod";
 import { summarizeToolResult } from "./compress/structural.js";
 import { answerSystem, answerUser, workerSystem } from "./prompts.js";
-import { isDeclined, toAiTool } from "./tools/define-tool.js";
-import type { Confirm, GoliathTool, StepRecord } from "./types.js";
+import type { Confirm, GoliathTool, StepRecord, ToolContext } from "./types.js";
 
-type ToolStepOutcome = {
-  input: unknown;
-  result: string;
-  skipped: boolean;
-  /** The model answered in prose instead of calling the tool. */
-  text?: string;
-};
+type ToolStepOutcome =
+  | { ok: true; input: unknown; result: string; skipped: boolean }
+  | { ok: false; reason: "tool-args-invalid" };
 
 /**
- * A worker gets a fresh context, one tool, and a one-line brief. It calls the
- * tool once and hands back a compressed result. Nothing else it saw survives.
+ * A worker gets a fresh context, one tool, and a one-line brief. The conductor
+ * already chose the tool, so the worker's whole job is the arguments: one
+ * structured-output call, then Goliath runs the tool itself.
+ *
+ * Goliath never hands tools to the provider. On Apple's runtime the provider
+ * would run its own loop with pre-registered tools and no step boundary
+ * (docs/research/rn-providers-and-ai-sdk.md § 1.3), and mixing tools with
+ * schema-constrained output suppresses tool calls on small models
+ * (docs/research/small-context-agent-patterns.md, rule 9). Asking for the
+ * arguments as a plain object sidesteps both, works on every provider, and
+ * keeps the confirm step in Goliath's hands.
  */
 const runToolStep = async (input: {
   model: LanguageModel;
@@ -25,31 +30,43 @@ const runToolStep = async (input: {
   confirm: Confirm;
   signal?: AbortSignal;
 }): Promise<ToolStepOutcome> => {
-  const aiTool = toAiTool(input.tool, {
-    confirm: input.confirm,
-    brief: input.brief,
-    ...(input.signal ? { signal: input.signal } : {}),
-  });
-  const result = await generateText({
-    model: input.model,
-    tools: { [input.tool.name]: aiTool },
-    toolChoice: { type: "tool", toolName: input.tool.name },
-    stopWhen: stepCountIs(1),
-    system: workerSystem(input.instructions, input.brief),
-    prompt: input.ask,
-    ...(input.signal ? { abortSignal: input.signal } : {}),
-  });
+  let args: unknown = {};
+  if (needsArguments(input.tool.parameters)) {
+    try {
+      const result = await generateText({
+        model: input.model,
+        output: Output.object({ schema: input.tool.parameters }),
+        system: workerSystem(input.instructions, input.brief),
+        prompt: input.ask,
+        ...(input.signal ? { abortSignal: input.signal } : {}),
+      });
+      if (result.output === undefined) return { ok: false, reason: "tool-args-invalid" };
+      args = result.output;
+    } catch (error) {
+      // Bad JSON or a schema miss is the model's mistake; anything else is a real error.
+      if (NoObjectGeneratedError.isInstance(error))
+        return { ok: false, reason: "tool-args-invalid" };
+      throw error;
+    }
+  }
 
-  const toolResult = result.toolResults[0];
-  if (!toolResult) {
-    return { input: undefined, result: "", skipped: false, text: result.text.trim() };
+  if (input.tool.writes) {
+    const approved = await input.confirm({
+      tool: input.tool.name,
+      input: args,
+      brief: input.brief,
+    });
+    if (!approved) return { ok: true, input: args, result: "skipped by the user", skipped: true };
   }
-  const output = toolResult.output;
-  if (isDeclined(output)) {
-    return { input: toolResult.input, result: "skipped by the user", skipped: true };
-  }
-  return { input: toolResult.input, result: summarizeToolResult(output), skipped: false };
+
+  const context: ToolContext = input.signal ? { signal: input.signal } : {};
+  const output = await input.tool.execute(args, context);
+  return { ok: true, input: args, result: summarizeToolResult(output), skipped: false };
 };
+
+/** A tool with no parameters needs no model call at all. Apple says the same: run it directly. */
+const needsArguments = (schema: z.ZodType): boolean =>
+  !(schema instanceof z.ZodObject) || Object.keys(schema.shape).length > 0;
 
 /** The closing stone: turn the step log into two or three sentences. */
 const runAnswerStep = async (input: {
@@ -69,5 +86,5 @@ const runAnswerStep = async (input: {
   return result.text.trim();
 };
 
-export { runAnswerStep, runToolStep };
+export { needsArguments, runAnswerStep, runToolStep };
 export type { ToolStepOutcome };

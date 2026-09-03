@@ -1,4 +1,4 @@
-import { Output, generateText, type LanguageModel } from "ai";
+import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
 import { z } from "zod";
 import { estimateTokens } from "./budget.js";
 import { clip } from "./compress/structural.js";
@@ -75,8 +75,10 @@ const plan = async (input: {
     }
     return { ok: true, plan: next };
   } catch (error) {
-    if ((error as { name?: string } | null)?.name === "AbortError") throw error;
-    return { ok: false, reason: "plan-invalid" };
+    // Only a malformed plan is the model's mistake to retry. Guardrails, a dead
+    // session, or an unavailable model propagate so the turn escalates as model-error.
+    if (NoObjectGeneratedError.isInstance(error)) return { ok: false, reason: "plan-invalid" };
+    throw error;
   }
 };
 

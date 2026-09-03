@@ -61,6 +61,7 @@ type EscalationReason =
   | "empty-answer"
   | "plan-invalid"
   | "conductor-asked"
+  | "tool-args-invalid"
   | "model-error";
 
 /** One stone thrown: what the conductor decided and what the worker did. */

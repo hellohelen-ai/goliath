@@ -16,9 +16,7 @@ const perfect = (fixture: Fixture): ScriptedReply[] => {
   const replies: ScriptedReply[] = [];
   for (const tool of fixture.tools) {
     replies.push({ json: { kind: "tool", tool, brief: `use ${tool}` } });
-    replies.push({
-      toolCall: { name: tool, input: tool === "createTask" ? { title: fixture.ask } : {} },
-    });
+    if (tool === "createTask") replies.push({ json: { title: fixture.ask } });
   }
   replies.push({ json: { kind: "answer", brief: "reply" } });
   replies.push({ text: `Done: ${fixture.ask}. Milk is still on the list.` });

@@ -27,9 +27,9 @@ describe("runTurn", () => {
   test("list → create with confirm → answer, all on device", async () => {
     const model = fakeModel([
       { json: { kind: "tool", tool: "listTasks", brief: "see what is open" } },
-      { toolCall: { name: "listTasks", input: {} } },
+      // listTasks has no parameters, so no worker call: Goliath runs it directly.
       { json: { kind: "tool", tool: "createTask", brief: "add buy eggs" } },
-      { toolCall: { name: "createTask", input: { title: "Buy eggs" } } },
+      { json: { title: "Buy eggs" } },
       { json: { kind: "answer", brief: "reply" } },
       { text: "Added Buy eggs. You now have three tasks." },
     ]);
@@ -54,7 +54,7 @@ describe("runTurn", () => {
     expect(model.remaining()).toBe(0);
 
     // The conductor's second prompt carried the compressed list, not raw JSON.
-    const secondPlan = JSON.stringify(model.calls[2]?.prompt);
+    const secondPlan = JSON.stringify(model.calls[1]?.prompt);
     expect(secondPlan).toContain("1. title: Buy milk");
     expect(secondPlan).not.toContain('{"title"');
   });
@@ -63,7 +63,7 @@ describe("runTurn", () => {
     const before = tasks.length;
     const model = fakeModel([
       { json: { kind: "tool", tool: "createTask", brief: "add a task" } },
-      { toolCall: { name: "createTask", input: { title: "Nope" } } },
+      { json: { title: "Nope" } },
       { json: { kind: "answer", brief: "reply" } },
       { text: "Okay, I did not add it." },
     ]);
@@ -84,9 +84,7 @@ describe("runTurn", () => {
   test("a repeated tool call escalates to the fallback with the step log", async () => {
     const model = fakeModel([
       { json: { kind: "tool", tool: "listTasks", brief: "look" } },
-      { toolCall: { name: "listTasks", input: {} } },
       { json: { kind: "tool", tool: "listTasks", brief: "look again" } },
-      { toolCall: { name: "listTasks", input: {} } },
       { text: "brief after cloud" },
     ]);
     let received: unknown;
@@ -140,6 +138,25 @@ describe("runTurn", () => {
     expect(result.handledBy).toBe("device");
   });
 
+  test("arguments that fail the schema escalate as tool-args-invalid", async () => {
+    const model = fakeModel([
+      { json: { kind: "tool", tool: "createTask", brief: "add" } },
+      { text: "not an object" },
+    ]);
+    let reason: string | undefined;
+    const goliath = createGoliath({
+      model,
+      tools: { createTask },
+      fallback: async (request) => {
+        reason = request.reason;
+        return { text: "cloud" };
+      },
+    });
+    const result = await goliath.run("add something");
+    expect(result.handledBy).toBe("cloud");
+    expect(reason).toBe("tool-args-invalid");
+  });
+
   test("with no tools it answers directly and remembers", async () => {
     const memory = inMemory();
     const model = fakeModel([{ text: "Hi there." }]);
@@ -157,9 +174,9 @@ describe("runTurn", () => {
   test("the step cap escalates before the conductor runs again", async () => {
     const model = fakeModel([
       { json: { kind: "tool", tool: "createTask", brief: "1" } },
-      { toolCall: { name: "createTask", input: { title: "one" } } },
+      { json: { title: "one" } },
       { json: { kind: "tool", tool: "createTask", brief: "2" } },
-      { toolCall: { name: "createTask", input: { title: "two" } } },
+      { json: { title: "two" } },
     ]);
     const goliath = createGoliath({
       model,

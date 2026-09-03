@@ -57,13 +57,13 @@ ask ──► recall ──► conductor ──► worker ──► judge ──
                     fields)     ≤600 chars
 ```
 
-| Stage         | What it sees                                            | What it returns                                                              |
-| ------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Conductor** | The ask, the memory brief, and one line per step so far | `{ kind: "tool" \| "answer" \| "escalate", tool?, brief }`                   |
-| **Worker**    | A one-line brief and exactly one tool                   | The tool's output, compressed to `key: value` lines                          |
-| **Judge**     | The step log                                            | Escalate on a repeated call, an empty answer, or the step cap                |
-| **Answer**    | The ask, the brief, the step log                        | Two or three sentences                                                       |
-| **Scribe**    | The last three exchanges                                | A rolling brief of at most 60 words, updated only when an exchange falls off |
+| Stage         | What it sees                                            | What it returns                                                                      |
+| ------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Conductor** | The ask, the memory brief, and one line per step so far | `{ kind: "tool" \| "answer" \| "escalate", tool?, brief }`                           |
+| **Worker**    | A one-line brief and one tool's schema                  | The arguments, as structured output. Goliath runs the tool and compresses the result |
+| **Judge**     | The step log                                            | Escalate on a repeated call, an empty answer, or the step cap                        |
+| **Answer**    | The ask, the brief, the step log                        | Two or three sentences                                                               |
+| **Scribe**    | The last three exchanges                                | A rolling brief of at most 60 words, updated only when an exchange falls off         |
 
 Nothing a worker saw survives the step. The conductor never sees raw JSON. That is the whole trick.
 
@@ -76,8 +76,10 @@ tool loop natively. Both fall over on a phone for the same reasons:
   has forgotten the ask.
 - **Many tools confuse a small model.** Past about five definitions, it picks wrong or invents
   arguments. Goliath gives each worker one.
-- **Apple runs its loop out of sight.** The Callstack provider documents that `stopWhen` and
-  per-step hooks do not fire. Goliath owns the outer loop and passes one step at a time.
+- **Apple runs its loop out of sight.** Under the Callstack provider, tools are pre-registered and
+  executed inside Apple's own session; the AI SDK sees one step and `stopWhen` never fires. Goliath
+  never hands tools to the provider. It asks for the arguments as structured output, which Apple's
+  guided generation constrains at decode time, then runs the tool itself.
 - **There is no confidence signal.** No logprobs on device. Goliath watches for the things a lost
   3B model does: repeats itself, answers with nothing, runs past the cap.
 

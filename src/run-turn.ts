@@ -151,15 +151,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
         ...(input.signal ? { signal: input.signal } : {}),
       });
 
-      if (done.text !== undefined) {
-        // The worker answered instead of calling. Treat it as a weak answer step.
-        steps.push({ index: steps.length, kind: "answer", brief: next.brief, text: done.text });
-        const empty = judgeAnswer(done.text);
-        if (empty) return escalate(empty);
-        emit({ type: "answer", text: done.text });
-        await commit(input, state, { ask: input.ask, answer: done.text, at: Date.now() }, emit);
-        return { text: done.text, handledBy: "device", steps, trace };
-      }
+      if (!done.ok) return escalate(done.reason);
 
       const repeat = judgeStep({
         steps,

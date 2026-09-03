@@ -5,8 +5,8 @@ import { fakeModel } from "../src/testing/index.js";
 
 const ping = defineTool({
   name: "ping",
-  description: "Ping.",
-  parameters: z.object({}),
+  description: "Ping a host.",
+  parameters: z.object({ host: z.string() }),
   execute: () => "pong",
 });
 
