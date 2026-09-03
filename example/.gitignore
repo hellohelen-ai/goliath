@@ -4,3 +4,4 @@ dist/
 ios/
 android/
 *.log
+.expo-export/
