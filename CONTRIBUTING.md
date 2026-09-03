@@ -46,7 +46,14 @@ Open the PR against `main`. CI has to be green. If the change is user-visible, a
 
 ## Releases
 
-Maintainers only, and deliberately boring:
+Maintainers only, and deliberately boring.
+
+Before cutting anything, run the **release-preflight** workflow from the Actions tab. It builds
+the exact tarball a release would push, installs those bytes into a clean project, and uploads
+the artifact — so you can try the real thing before a version number exists. Nothing it does is
+publishable: it holds no publishing permission.
+
+Then:
 
 1. Move the `## [Unreleased]` entries in `CHANGELOG.md` under a new version heading.
 2. Bump `version` in `package.json`.
