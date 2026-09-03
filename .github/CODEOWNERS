@@ -1,0 +1,7 @@
+# Trusted publishing means repo write access is npm publish access. These paths are the
+# release machinery and the package identity; changes to them need the owner's review.
+
+/.github/workflows/   @hellohelen-ai
+/.github/CODEOWNERS   @hellohelen-ai
+/package.json         @hellohelen-ai
+/SECURITY.md          @hellohelen-ai

@@ -1,0 +1,58 @@
+name: Bug report
+description: Something in the loop behaves differently than documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The most useful bug reports include the step log — `result.steps`
+        is one line per step and usually shows exactly where the turn went wrong.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did Goliath do, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >
+        Ideally a test using `fakeModel` from `@hellohelen-ai/goliath/testing`, so the model's
+        replies are scripted and the failure is deterministic.
+      render: ts
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Step log
+      description: The contents of `result.steps`, plus `result.handledBy`.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Goliath version
+      placeholder: 0.0.1
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Which AI SDK model — the Apple on-device model, a cloud model, or `fakeModel`?
+      placeholder: "@react-native-ai/apple"
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      placeholder: iOS 26.1 / Bun 1.3.12 / Node 24

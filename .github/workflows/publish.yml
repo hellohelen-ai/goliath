@@ -1,36 +1,39 @@
 name: publish
 
+# Tags only. `workflow_dispatch` is deliberately absent: users with write access can
+# trigger manual runs, which would bypass the ruleset restricting who may create a v* tag.
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
-  contents: read
-  id-token: write # required for npm trusted publishing (OIDC)
+  contents: write # create the GitHub Release
+  id-token: write # npm trusted publishing (OIDC)
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # changelog and release notes need history
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false # never cache in a release build
 
-      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      # Trusted publishing needs npm >= 11.5.1.
       - run: npm install -g npm@latest
 
       - run: bun install --frozen-lockfile
 
       - name: Check tag matches package version
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           tag="${GITHUB_REF_NAME#v}"
           pkg="$(node -p "require('./package.json').version")"
@@ -39,6 +42,33 @@ jobs:
             exit 1
           fi
 
-      # No NODE_AUTH_TOKEN: the npm CLI picks up the OIDC token itself.
+      # No NODE_AUTH_TOKEN: the npm CLI picks up the OIDC token itself, and publishes a
+      # provenance attestation alongside the tarball.
       # `prepublishOnly` runs `bun run check`, which builds dist/ before packing.
       - run: npm publish
+
+      - name: Extract this version's changelog entry
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes="$RUNNER_TEMP/release-notes.md"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/        { exit }
+            found && /^\[[^]]+\]:/   { exit }
+            found                     { print }
+          ' CHANGELOG.md > "$notes"
+          if [ -s "$notes" ]; then
+            echo "NOTES=$notes" >> "$GITHUB_ENV"
+          else
+            echo "No CHANGELOG entry for $version; falling back to generated notes." >&2
+          fi
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${NOTES:-}" ]; then
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$NOTES" --verify-tag
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi

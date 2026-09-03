@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a change to the loop, the prompts, or the API.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Goliath runs inside a 4,096-token window. Anything added to a prompt or a tool result takes
+        budget away from the step log, so the trade is worth stating up front.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What turn goes wrong today, and why can the current API not handle it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: The shape of the change. Code sketches welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: Token cost
+      description: >
+        Does this add anything to a prompt, a plan, or a tool result? Roughly how much, and what
+        would you drop to pay for it?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

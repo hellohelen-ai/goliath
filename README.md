@@ -1,5 +1,10 @@
 # Goliath
 
+[![npm](https://img.shields.io/npm/v/@hellohelen-ai/goliath?color=%23cb3837&logo=npm)](https://www.npmjs.com/package/@hellohelen-ai/goliath)
+[![ci](https://github.com/hellohelen-ai/goliath/actions/workflows/ci.yml/badge.svg)](https://github.com/hellohelen-ai/goliath/actions/workflows/ci.yml)
+[![provenance](https://img.shields.io/badge/provenance-attested-brightgreen)](https://www.npmjs.com/package/@hellohelen-ai/goliath#provenance)
+[![license](https://img.shields.io/npm/l/@hellohelen-ai/goliath)](./LICENSE)
+
 **An agent harness for the phone's own model.**
 
 Apple ships a ~3B language model on every iPhone with Apple Intelligence. It is free, private, and
@@ -9,6 +14,10 @@ tool output small, asks before it changes anything, and hands the turn to a clou
 phone cannot finish.
 
 It only needs one stone.
+
+```sh
+npm i @hellohelen-ai/goliath
+```
 
 ```ts
 import { createGoliath, defineTool } from "@hellohelen-ai/goliath";
@@ -136,6 +145,15 @@ That last line is the number this project exists for.
 Early. The core loop, compression, memory, judge, and eval runner are here and tested against a
 scripted model. On-device runs and the Apple provider adapter are next. See `docs/` for the
 research behind the design.
+
+## Contributing
+
+Issues and pull requests are welcome. `CONTRIBUTING.md` covers the setup, what a good change looks
+like, and how releases are cut. Please report security issues
+[privately](./SECURITY.md) rather than as a public issue.
+
+Released versions are listed in [`CHANGELOG.md`](./CHANGELOG.md). Every release is published from
+CI over OIDC with a provenance attestation — `npm audit signatures` will verify it.
 
 ## License
 
