@@ -115,8 +115,8 @@ type GoliathConfig = {
   maxSteps?: number;
   /** Extra compressors run after the built-in structural pass. */
   compressors?: Compressor[];
-  /** Who Goliath is, in one or two short sentences. */
-  persona?: string;
+  /** Who Goliath is, in one or two short sentences. Every prompt starts with it. */
+  instructions?: string;
   /** Called for every trace event as it happens. */
   onEvent?: (event: TraceEvent) => void;
 };

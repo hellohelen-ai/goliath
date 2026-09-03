@@ -1,5 +1,5 @@
 /**
- * Asks a personal assistant hears every day, with what a good run looks like.
+ * Asks a instructionsl assistant hears every day, with what a good run looks like.
  * `tools` is the exact sequence of tool calls expected; `handledBy` is where
  * the turn should finish. Add cases here, not in the runner.
  */

@@ -116,8 +116,8 @@ describe("runTurn", () => {
     expect((received as { steps: unknown[] }).steps).toHaveLength(1);
   });
 
-  test("an invalid plan escalates without a fallback and returns empty", async () => {
-    const model = fakeModel([{ text: "not json at all" }]);
+  test("an invalid plan is retried once, then escalates; no fallback returns empty", async () => {
+    const model = fakeModel([{ text: "not json at all" }, { text: "still not json" }]);
     const goliath = createGoliath({ model, tools: { listTasks } });
 
     const result = await goliath.run("hello");
@@ -125,6 +125,19 @@ describe("runTurn", () => {
     expect(result.handledBy).toBe("device");
     expect(result.text).toBe("");
     expect(result.trace.at(-1)).toMatchObject({ type: "escalate", reason: "plan-invalid" });
+    expect(model.calls).toHaveLength(2);
+  });
+
+  test("a plan that fails once and then parses carries on", async () => {
+    const model = fakeModel([
+      { text: "oops" },
+      { json: { kind: "answer", brief: "reply" } },
+      { text: "Hello." },
+    ]);
+    const goliath = createGoliath({ model, tools: { listTasks } });
+    const result = await goliath.run("hello");
+    expect(result.text).toBe("Hello.");
+    expect(result.handledBy).toBe("device");
   });
 
   test("with no tools it answers directly and remembers", async () => {

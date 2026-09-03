@@ -18,7 +18,7 @@ type ToolStepOutcome = {
  */
 const runToolStep = async (input: {
   model: LanguageModel;
-  persona: string;
+  instructions: string;
   tool: GoliathTool<any, any>;
   brief: string;
   ask: string;
@@ -35,7 +35,7 @@ const runToolStep = async (input: {
     tools: { [input.tool.name]: aiTool },
     toolChoice: { type: "tool", toolName: input.tool.name },
     stopWhen: stepCountIs(1),
-    system: workerSystem(input.persona, input.brief),
+    system: workerSystem(input.instructions, input.brief),
     prompt: input.ask,
     ...(input.signal ? { abortSignal: input.signal } : {}),
   });
@@ -54,7 +54,7 @@ const runToolStep = async (input: {
 /** The closing stone: turn the step log into two or three sentences. */
 const runAnswerStep = async (input: {
   model: LanguageModel;
-  persona: string;
+  instructions: string;
   ask: string;
   summary: string;
   steps: StepRecord[];
@@ -62,7 +62,7 @@ const runAnswerStep = async (input: {
 }): Promise<string> => {
   const result = await generateText({
     model: input.model,
-    system: answerSystem(input.persona),
+    system: answerSystem(input.instructions),
     prompt: answerUser({ ask: input.ask, summary: input.summary, steps: input.steps }),
     ...(input.signal ? { abortSignal: input.signal } : {}),
   });

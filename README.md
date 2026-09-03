@@ -83,17 +83,17 @@ tool loop natively. Both fall over on a phone for the same reasons:
 
 ## What you supply
 
-| Option     | Default             | Notes                                                                      |
-| ---------- | ------------------- | -------------------------------------------------------------------------- |
-| `model`    | required            | Any AI SDK `LanguageModel`                                                 |
-| `tools`    | `{}`                | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
-| `memory`   | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like   |
-| `fallback` | none                | Receives the ask, the brief, the step log, and the reason. Returns text    |
-| `confirm`  | approve all         | Asked before any `writes: true` tool runs                                  |
-| `window`   | `4096`              | Apple Foundation Models. The brief is budgeted at one eighth of it         |
-| `maxSteps` | `5`                 | Five stones                                                                |
-| `persona`  | a careful assistant | One or two sentences. Every prompt starts with it                          |
-| `onEvent`  | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
+| Option         | Default             | Notes                                                                      |
+| -------------- | ------------------- | -------------------------------------------------------------------------- |
+| `model`        | required            | Any AI SDK `LanguageModel`                                                 |
+| `tools`        | `{}`                | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
+| `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like   |
+| `fallback`     | none                | Receives the ask, the brief, the step log, and the reason. Returns text    |
+| `confirm`      | approve all         | Asked before any `writes: true` tool runs                                  |
+| `window`       | `4096`              | Apple Foundation Models. The brief is budgeted at one eighth of it         |
+| `maxSteps`     | `5`                 | Five stones                                                                |
+| `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
+| `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
 
 ## Testing without a phone
 
@@ -113,7 +113,7 @@ harness sent exactly the prompts you expected. `model.calls` holds every prompt 
 
 ## Evals
 
-`evals/fixtures.ts` holds the asks a personal assistant hears every day, with the tool calls a good
+`evals/fixtures.ts` holds the asks a instructionsl assistant hears every day, with the tool calls a good
 run makes and where it should finish. `runEvals` scores any model against them and prints the
 split:
 

@@ -1,6 +1,6 @@
 import type { StepRecord, ToolMap } from "./types.js";
 
-const DEFAULT_PERSONA = "You are a careful assistant that lives on this phone.";
+const DEFAULT_INSTRUCTIONS = "You are a careful assistant that lives on this phone.";
 
 /** One line per tool. The conductor reads these on every step, so they stay short. */
 const toolMenu = (tools: ToolMap): string =>
@@ -26,9 +26,9 @@ const compactJson = (value: unknown): string => {
   return text.length > 120 ? `${text.slice(0, 119)}…` : text;
 };
 
-const conductorSystem = (persona: string, tools: ToolMap, maxSteps: number): string =>
+const conductorSystem = (instructions: string, tools: ToolMap, maxSteps: number): string =>
   [
-    persona,
+    instructions,
     "You plan one step at a time. Reply with JSON only.",
     `Pick "tool" with the tool name when you need information or must change something. Pick "answer" when you can reply now. Pick "escalate" only when the ask is beyond these tools. You may take at most ${maxSteps} steps.`,
     "Tools:",
@@ -45,11 +45,11 @@ const conductorUser = (input: { ask: string; summary: string; steps: StepRecord[
     .filter(Boolean)
     .join("\n\n");
 
-const workerSystem = (persona: string, brief: string): string =>
-  `${persona}\nDo exactly this: ${brief}\nCall the tool with the right arguments.`;
+const workerSystem = (instructions: string, brief: string): string =>
+  `${instructions}\nDo exactly this: ${brief}\nCall the tool with the right arguments.`;
 
-const answerSystem = (persona: string): string =>
-  `${persona}\nAnswer in two or three short sentences, using only what is below. Do not mention tools.`;
+const answerSystem = (instructions: string): string =>
+  `${instructions}\nAnswer in two or three short sentences, using only what is below. Do not mention tools.`;
 
 const answerUser = (input: { ask: string; summary: string; steps: StepRecord[] }): string =>
   [
@@ -60,8 +60,11 @@ const answerUser = (input: { ask: string; summary: string; steps: StepRecord[] }
     .filter(Boolean)
     .join("\n\n");
 
-const scribeSystem =
-  "You keep a brief for an assistant. Rewrite the brief to include the new exchange. At most 60 words. Keep names, dates, and decisions. Drop pleasantries.";
+const scribeSystem = [
+  "You keep a brief for an assistant. Rewrite it to include the new exchange.",
+  "Use exactly these lines: Goal:, Done:, Decisions:, Next:. Leave a line empty if nothing fits.",
+  "At most 60 words. Keep names, dates, numbers, and choices. Drop pleasantries.",
+].join(" ");
 
 const scribeUser = (input: { summary: string; ask: string; answer: string }): string =>
   [
@@ -71,7 +74,7 @@ const scribeUser = (input: { summary: string; ask: string; answer: string }): st
   ].join("\n\n");
 
 export {
-  DEFAULT_PERSONA,
+  DEFAULT_INSTRUCTIONS,
   answerSystem,
   answerUser,
   conductorSystem,

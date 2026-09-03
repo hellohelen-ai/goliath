@@ -37,7 +37,7 @@ describe("conductor budget", () => {
     const steps = [bigStep(0), bigStep(1), bigStep(2), bigStep(3)];
     const outcome = await plan({
       model,
-      persona: "p",
+      instructions: "p",
       tools: { look },
       ask: "what is open?",
       summary: "",
@@ -59,7 +59,7 @@ describe("conductor budget", () => {
     const events: unknown[] = [];
     await plan({
       model,
-      persona: "p",
+      instructions: "p",
       tools: { look },
       ask: "hi",
       summary: "",

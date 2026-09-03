@@ -38,7 +38,7 @@ const trimSteps = (steps: StepRecord[]): StepRecord[] =>
 /** Ask the model what to do next, with only the ask, the brief, and the step log in view. */
 const plan = async (input: {
   model: LanguageModel;
-  persona: string;
+  instructions: string;
   tools: ToolMap;
   ask: string;
   summary: string;
@@ -49,7 +49,7 @@ const plan = async (input: {
   signal?: AbortSignal;
 }): Promise<PlanOutcome> => {
   const toolNames = Object.keys(input.tools);
-  const system = conductorSystem(input.persona, input.tools, input.maxSteps);
+  const system = conductorSystem(input.instructions, input.tools, input.maxSteps);
   const limit = Math.floor(input.window * PROMPT_SHARE);
   let steps = input.steps;
   let prompt = conductorUser({ ask: input.ask, summary: input.summary, steps });

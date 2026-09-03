@@ -31,7 +31,7 @@ const createGoliath = (config: GoliathConfig): Goliath => {
         memory,
         confirm,
         ...(config.fallback ? { fallback: config.fallback } : {}),
-        ...(config.persona ? { persona: config.persona } : {}),
+        ...(config.instructions ? { instructions: config.instructions } : {}),
         maxSteps: config.maxSteps ?? DEFAULT_MAX_STEPS,
         window: config.window ?? DEFAULT_WINDOW,
         onEvent: (event) => {

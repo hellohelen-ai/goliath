@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import { plan, type Plan } from "./conductor.js";
 import { judgeAnswer, judgeStep } from "./judge.js";
-import { DEFAULT_PERSONA } from "./prompts.js";
+import { DEFAULT_INSTRUCTIONS } from "./prompts.js";
 import { remember } from "./scribe.js";
 import type {
   Confirm,
@@ -23,7 +23,7 @@ type TurnInput = {
   memory: Memory;
   confirm: Confirm;
   fallback?: Fallback;
-  persona?: string;
+  instructions?: string;
   maxSteps: number;
   window: number;
   onEvent?: (event: TraceEvent) => void;
@@ -36,7 +36,7 @@ type TurnInput = {
  * cloud always receives the same shape.
  */
 const runTurn = async (input: TurnInput): Promise<RunResult> => {
-  const persona = input.persona ?? DEFAULT_PERSONA;
+  const instructions = input.instructions ?? DEFAULT_INSTRUCTIONS;
   const trace: TraceEvent[] = [];
   const steps: StepRecord[] = [];
   const emit = (event: TraceEvent) => {
@@ -78,6 +78,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
   }
 
   async function stones(): Promise<RunResult> {
+    let planRetried = false;
     for (;;) {
       const stall = judgeStep({ steps, maxSteps: input.maxSteps });
       if (stall) return escalate(stall);
@@ -85,7 +86,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       const outcome = hasTools
         ? await plan({
             model: input.model,
-            persona,
+            instructions,
             tools: input.tools,
             ask: input.ask,
             summary: state.summary,
@@ -97,7 +98,13 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
           })
         : { ok: true as const, plan: { kind: "answer", brief: "reply" } as Plan };
 
-      if (!outcome.ok) return escalate("plan-invalid");
+      if (!outcome.ok) {
+        // Small models drop a brace now and then. One more try is cheap and
+        // usually enough; two failures in a row is a real signal.
+        if (planRetried) return escalate("plan-invalid");
+        planRetried = true;
+        continue;
+      }
       const next = outcome.plan;
       emit({
         type: "plan",
@@ -112,7 +119,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       if (next.kind === "answer") {
         const text = await runAnswerStep({
           model: input.model,
-          persona,
+          instructions,
           ask: input.ask,
           summary: state.summary,
           steps,
@@ -132,7 +139,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
       const started = Date.now();
       const done = await runToolStep({
         model: input.model,
-        persona,
+        instructions,
         tool,
         brief: next.brief,
         ask: input.ask,
