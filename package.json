@@ -1,0 +1,68 @@
+{
+  "name": "@visionlabs/goliath",
+  "version": "0.0.1",
+  "description": "An agent harness for the phone's own model. Apple Foundation Models, a 4k window, one stone.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/helen-ai-personal-assistant/goliath.git"
+  },
+  "homepage": "https://github.com/helen-ai-personal-assistant/goliath#readme",
+  "bugs": "https://github.com/helen-ai-personal-assistant/goliath/issues",
+  "keywords": [
+    "on-device",
+    "agent",
+    "apple-intelligence",
+    "foundation-models",
+    "react-native",
+    "expo",
+    "ai-sdk",
+    "small-language-model"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "bun run typecheck && bun run format:check && bun run test && bun run build",
+    "prepublishOnly": "bun run check"
+  },
+  "peerDependencies": {
+    "ai": "^7.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "ai": "^7.0.91",
+    "prettier": "^3.6.0",
+    "typescript": "^5.9.0",
+    "zod": "^4.2.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
