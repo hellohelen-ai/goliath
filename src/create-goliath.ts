@@ -59,12 +59,15 @@ const createGoliath = (config: GoliathConfig): Goliath => {
         });
         return { text, handledBy: "cloud", steps: [], trace: [] };
       }
+      const facts = typeof config.facts === "function" ? config.facts() : config.facts;
       const result = await runTurn({
         ask,
         model: config.model,
         tools,
         memory,
         confirm,
+        ...(facts ? { facts } : {}),
+        ...(config.examples ? { examples: config.examples } : {}),
         ...(config.fallback ? { fallback: config.fallback } : {}),
         ...(config.instructions ? { instructions: config.instructions } : {}),
         maxSteps: config.maxSteps ?? DEFAULT_MAX_STEPS,

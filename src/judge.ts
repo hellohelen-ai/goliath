@@ -22,7 +22,14 @@ const judgeStep = (input: {
   return null;
 };
 
+/** Two failed tool steps in a row: the model is not planning around the error. */
+const judgeToolFailures = (steps: StepRecord[]): EscalationReason | null => {
+  const last = steps.at(-1);
+  const before = steps.at(-2);
+  return last?.failed && before?.failed ? "tool-error" : null;
+};
+
 const judgeAnswer = (text: string): EscalationReason | null =>
   text.trim().length === 0 ? "empty-answer" : null;
 
-export { isRepeat, judgeAnswer, judgeStep };
+export { isRepeat, judgeAnswer, judgeStep, judgeToolFailures };

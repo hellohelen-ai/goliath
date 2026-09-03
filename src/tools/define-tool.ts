@@ -8,6 +8,7 @@ type DefineToolArgs<INPUT, OUTPUT> = {
   writes?: boolean;
   execute: (input: INPUT, context: ToolContext) => Promise<OUTPUT> | OUTPUT;
   toModelOutput?: (output: OUTPUT) => string;
+  requires?: string[];
 };
 
 /**

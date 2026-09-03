@@ -17,6 +17,12 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
    * string. Default: `key: value` lines capped at 600 characters.
    */
   toModelOutput?: (output: OUTPUT) => string;
+  /**
+   * Tools that must have run earlier in the turn. Rendered to the conductor
+   * as "Use lookupContact before sendMessage." TinyAgent's biggest plan-shape
+   * lever was exactly this sentence.
+   */
+  requires?: string[];
 };
 
 type ToolContext = {
@@ -67,6 +73,8 @@ type EscalationReason =
   | "plan-invalid"
   | "conductor-asked"
   | "tool-args-invalid"
+  | "tool-error"
+  | "guardrail"
   | "model-error";
 
 /** One stone thrown: what the conductor decided and what the worker did. */
@@ -81,6 +89,8 @@ type StepRecord = {
   skipped?: boolean;
   /** Served from an earlier identical step; nothing ran. */
   cached?: boolean;
+  /** The tool threw. `result` carries the message the conductor plans around. */
+  failed?: boolean;
   text?: string;
 };
 
@@ -95,7 +105,15 @@ type Confirm = (request: {
 
 type TraceEvent =
   | { type: "recall"; summary: string; recent: number }
-  | { type: "plan"; index: number; kind: StepRecord["kind"]; tool?: string; brief: string }
+  | {
+      type: "plan";
+      index: number;
+      kind: StepRecord["kind"];
+      tool?: string;
+      /** The conductor's one-sentence rationale, when it gave one. */
+      why?: string;
+      brief: string;
+    }
   | { type: "confirm"; tool: string; approved: boolean; reason?: string }
   | { type: "tool"; tool: string; input: unknown; result: string; ms: number }
   | { type: "answer"; text: string }
@@ -106,6 +124,8 @@ type TraceEvent =
 type RunResult = {
   text: string;
   handledBy: "device" | "cloud";
+  /** True when the loop stalled, no fallback was configured, and the answer is a best effort from the step log. */
+  bestEffort?: boolean;
   steps: StepRecord[];
   trace: TraceEvent[];
 };
@@ -134,6 +154,25 @@ type GoliathConfig = {
   instructions?: string;
   /** Called for every trace event as it happens. */
   onEvent?: (event: TraceEvent) => void;
+  /**
+   * Values the model should always have, injected as `key: value` lines
+   * instead of fetched by a tool (Apple TN3193: run the tool before the model
+   * when it always needs the result). Today's date, timezone, the user's name.
+   * A function is called once per turn.
+   */
+  facts?: Record<string, string> | (() => Record<string, string>);
+  /**
+   * Two or three worked plans, shown to the conductor. Format is fixed by
+   * guided generation; examples buy tool choice and ordering. Measure before
+   * keeping any: each costs ~60 tokens per step.
+   */
+  examples?: PlanExample[];
+};
+
+type PlanExample = {
+  ask: string;
+  /** The steps a good run takes, in order, with `answer` last. */
+  steps: Array<{ tool: string; brief: string } | { answer: string }>;
 };
 
 export type {
@@ -148,6 +187,7 @@ export type {
   GoliathTool,
   Memory,
   MemoryState,
+  PlanExample,
   RunResult,
   StepRecord,
   ToolContext,

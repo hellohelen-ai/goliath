@@ -117,18 +117,26 @@ describe("runTurn", () => {
     expect(steps[1]).toMatchObject({ cached: true, result: "same as step 1" });
   });
 
-  test("an invalid plan is retried once, then escalates; no fallback returns empty", async () => {
-    const model = fakeModel([{ text: "not json at all" }, { text: "still not json" }]);
+  test("an invalid plan is retried once, then escalates; no fallback gives a best effort", async () => {
+    const model = fakeModel([
+      { text: "not json at all" },
+      { text: "still not json" },
+      { text: "I could not work out what to do with that." },
+    ]);
     const goliath = createGoliath({ model, tools: { listTasks } });
 
     const result = await goliath.run("hello");
 
     expect(result.handledBy).toBe("device");
-    expect(result.text).toBe("");
-    expect(result.trace.at(-1)).toMatchObject({ type: "escalate", reason: "plan-invalid" });
-    expect(model.calls).toHaveLength(2);
+    expect(result.bestEffort).toBe(true);
+    expect(result.text).toBe("I could not work out what to do with that.");
+    expect(JSON.stringify(model.calls[2]?.prompt)).toContain("You could not finish this");
+    expect(result.trace.some((e) => e.type === "escalate" && e.reason === "plan-invalid")).toBe(
+      true,
+    );
+    expect(model.calls).toHaveLength(3);
     // The retry told the model what was wrong (Claude Code feeds the validation error back).
-    expect(JSON.stringify(model.calls[1]?.prompt)).toContain("was not valid JSON");
+    expect(JSON.stringify(model.calls[1]?.prompt)).toContain("was not valid");
   });
 
   test("a plan naming a missing tool retries with the tool list", async () => {
@@ -140,9 +148,7 @@ describe("runTurn", () => {
     const goliath = createGoliath({ model, tools: { listTasks } });
     const result = await goliath.run("email my list");
     expect(result.text).toBe("I cannot email, but here is your list.");
-    expect(JSON.stringify(model.calls[1]?.prompt)).toContain(
-      "No such tool available: sendEmail. Pick one of: listTasks",
-    );
+    expect(JSON.stringify(model.calls[1]?.prompt)).toContain("tool must be one of: listTasks");
   });
 
   test("a plan that fails once and then parses carries on", async () => {

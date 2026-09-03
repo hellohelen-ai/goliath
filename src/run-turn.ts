@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 import { plan, type Plan } from "./conductor.js";
-import { judgeAnswer, judgeStep } from "./judge.js";
+import { judgeAnswer, judgeStep, judgeToolFailures } from "./judge.js";
 import { DEFAULT_INSTRUCTIONS } from "./prompts.js";
 import { remember } from "./scribe.js";
 import type {
@@ -9,6 +9,7 @@ import type {
   Fallback,
   Memory,
   MemoryState,
+  PlanExample,
   RunResult,
   StepRecord,
   ToolMap,
@@ -26,6 +27,8 @@ type TurnInput = {
   instructions?: string;
   maxSteps: number;
   window: number;
+  facts?: Record<string, string>;
+  examples?: PlanExample[];
   onEvent?: (event: TraceEvent) => void;
   signal?: AbortSignal;
 };
@@ -50,7 +53,13 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
   const escalate = async (reason: EscalationReason, error?: string): Promise<RunResult> => {
     emit({ type: "escalate", reason, ...(error ? { error } : {}) });
     if (!input.fallback) {
-      return { text: "", handledBy: "device", steps, trace };
+      // No cloud to hand to. smolagents still answers from memory on max
+      // steps rather than returning nothing; so does Goliath, unless the
+      // model itself is what failed.
+      if (reason === "model-error") return { text: "", handledBy: "device", steps, trace };
+      const text = await bestEffortAnswer(input, instructions, state.summary, steps);
+      if (text) emit({ type: "answer", text });
+      return { text, handledBy: "device", bestEffort: true, steps, trace };
     }
     const { text } = await input.fallback({
       ask: input.ask,
@@ -74,6 +83,14 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
     // an unavailable model: none of these are the app's fault, and none are
     // worth retrying with the same input. The cloud gets the same step log.
     if (isAbort(error)) throw error;
+    if (isGuardrail(error)) {
+      // Apple's guardrail objects to text in the prompt or the reply. On a
+      // step that carries tool output that is usually a false positive on a
+      // calendar title, not an attack; either way, escalating would ship the
+      // very text it flagged. Stop here and let the app tell the user.
+      emit({ type: "escalate", reason: "guardrail", error: describeError(error) });
+      return { text: "", handledBy: "device", steps, trace };
+    }
     return escalate("model-error", describeError(error));
   }
 
@@ -95,6 +112,8 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
             maxSteps: input.maxSteps,
             window: input.window,
             emit,
+            ...(input.facts ? { facts: input.facts } : {}),
+            ...(input.examples ? { examples: input.examples } : {}),
             ...(retryHint ? { retryHint } : {}),
             ...(input.signal ? { signal: input.signal } : {}),
           })
@@ -116,6 +135,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
         index: steps.length,
         kind: next.kind === "escalate" ? "answer" : next.kind,
         ...(next.tool ? { tool: next.tool } : {}),
+        ...(next.why ? { why: next.why } : {}),
         brief: next.brief,
       });
 
@@ -204,6 +224,7 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
         input: done.input,
         result: done.result,
         skipped: done.skipped,
+        ...(done.failed ? { failed: true } : {}),
       });
       emit({
         type: "tool",
@@ -212,6 +233,8 @@ const runTurn = async (input: TurnInput): Promise<RunResult> => {
         result: done.result,
         ms: Date.now() - started,
       });
+      const failing = judgeToolFailures(steps);
+      if (failing) return escalate(failing, steps.at(-1)?.result);
     }
   }
 };
@@ -230,11 +253,38 @@ const findRepeatOfReadOnly = (steps: StepRecord[], toolName: string): StepRecord
   return last;
 };
 
+/** One answer call from the step log; an empty or failing call yields "". */
+const bestEffortAnswer = async (
+  input: TurnInput,
+  instructions: string,
+  summary: string,
+  steps: StepRecord[],
+): Promise<string> => {
+  try {
+    return await runAnswerStep({
+      model: input.model,
+      instructions,
+      ask: input.ask,
+      summary,
+      steps,
+      bestEffort: true,
+      ...(input.signal ? { signal: input.signal } : {}),
+    });
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    return "";
+  }
+};
+
 const EMPTY_ANSWER_NUDGE =
   "Your previous reply was empty. Answer now from what you found above; do not mention this notice.";
 
 const isAbort = (error: unknown): boolean =>
   (error as { name?: string } | null)?.name === "AbortError";
+
+/** Apple's GenerationError.guardrailViolation, however the provider spells it. */
+const isGuardrail = (error: unknown): boolean =>
+  /guardrail|content.?filter|safety/i.test(describeError(error));
 
 const describeError = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
