@@ -52,7 +52,22 @@ Maintainers only, and deliberately boring:
 2. Bump `version` in `package.json`.
 3. Commit to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
-The tag triggers `.github/workflows/publish.yml`, which refuses to run if the tag and
-`package.json` disagree. It publishes to npm over OIDC trusted publishing — there is no npm token
+The tag triggers `.github/workflows/publish.yml`, which waits for a required reviewer to approve
+the `release` environment before any step runs. It then refuses to continue if the tag and
+`package.json` disagree, and publishes to npm over OIDC trusted publishing — there is no npm token
 anywhere in the repo or in GitHub secrets, and every release carries a provenance attestation
 linking it to the build that produced it.
+
+Only repository admins can create a `v*` tag, and once pushed a tag cannot be moved or deleted,
+because provenance points at a commit.
+
+If the workflow filename or the environment ever changes, the npm trusted publisher has to be
+re-pointed at the same values or the OIDC claim will not match:
+
+```sh
+npm trust list @hellohelen-ai/goliath
+npm trust revoke @hellohelen-ai/goliath --id=<id>
+npm trust github @hellohelen-ai/goliath \
+  --file publish.yml --repository hellohelen-ai/goliath \
+  --environment release --allow-publish
+```

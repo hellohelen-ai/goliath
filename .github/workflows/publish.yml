@@ -13,6 +13,10 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Gated on the `release` environment: a required reviewer has to approve the run before
+    # any step executes. Repo write access is npm publish access under trusted publishing,
+    # so this is the approval that actually stands between a tag and the registry.
+    environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
