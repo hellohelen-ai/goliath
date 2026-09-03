@@ -8,10 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-09-03
+
 ### Changed
 
-- Build with TypeScript 7. Emitted JavaScript is byte-identical; only declaration property order
-  changes.
+- Build with TypeScript 7. Emitted JavaScript is byte-identical to the 5.9.3 build; only
+  declaration property order changes.
 
 ## [0.0.2] - 2026-09-03
 
@@ -50,6 +52,7 @@ First release.
 - An eval runner scoring fixtures with `pass^k` over repeated runs, per-fixture escalation
   expectations, and forbidden words.
 
-[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.0.2...HEAD
+[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/hellohelen-ai/goliath/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/hellohelen-ai/goliath/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/hellohelen-ai/goliath/releases/tag/v0.0.1
