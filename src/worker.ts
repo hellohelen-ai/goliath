@@ -1,107 +1,62 @@
 import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
 import { z } from "zod";
-import { clip, summarizeToolResult } from "./compress/structural.js";
+import { modelCall } from "./errors.js";
+import { assertPromptBudget } from "./budget.js";
+import { clip } from "./compress/structural.js";
 import { answerSystem, answerUser, bestEffortSystem, workerSystem } from "./prompts.js";
-import type { Confirm, GoliathTool, StepRecord, ToolContext } from "./types.js";
+import type { GoliathTool, StepRecord } from "./types.js";
 
-type ToolStepOutcome =
-  | { ok: true; input: unknown; result: string; skipped: boolean; failed?: boolean }
-  | { ok: false; reason: "tool-args-invalid" };
+type PreparedToolCall =
+  { ok: true; input: unknown; missing?: string } | { ok: false; reason: "tool-args-invalid" };
 
-/**
- * A worker gets a fresh context, one tool, and a one-line brief. The conductor
- * already chose the tool, so the worker's whole job is the arguments: one
- * structured-output call, then Goliath runs the tool itself.
- *
- * Goliath never hands tools to the provider. On Apple's runtime the provider
- * would run its own loop with pre-registered tools and no step boundary
- * (docs/research/rn-providers-and-ai-sdk.md § 1.3), and mixing tools with
- * schema-constrained output suppresses tool calls on small models
- * (docs/research/small-context-agent-patterns.md, rule 9). Asking for the
- * arguments as a plain object sidesteps both, works on every provider, and
- * keeps the confirm step in Goliath's hands.
- */
-const runToolStep = async (input: {
+/** Generate arguments in a fresh context. Execution and policy stay in the turn loop. */
+const prepareToolCall = async (input: {
   model: LanguageModel;
   instructions: string;
   tool: GoliathTool<any, any>;
   brief: string;
   ask: string;
-  confirm: Confirm;
+  window?: number;
   signal?: AbortSignal;
-}): Promise<ToolStepOutcome> => {
+}): Promise<PreparedToolCall> => {
   let args: unknown = {};
   if (needsArguments(input.tool.parameters)) {
+    const system = workerSystem(input.instructions, input.brief);
+    if (input.window) assertPromptBudget("arguments", system, input.ask, input.window);
     try {
-      const result = await generateText({
-        model: input.model,
-        output: Output.object({ schema: withMissing(input.tool.parameters) }),
-        system: workerSystem(input.instructions, input.brief),
-        prompt: input.ask,
-        ...(input.signal ? { abortSignal: input.signal } : {}),
-      });
+      const result = await modelCall("arguments", () =>
+        generateText({
+          model: input.model,
+          output: Output.object({ schema: withMissing(input.tool.parameters) }),
+          system,
+          prompt: input.ask,
+          ...(input.signal ? { abortSignal: input.signal } : {}),
+        }),
+      );
       if (result.output === undefined) return { ok: false, reason: "tool-args-invalid" };
-      const { missing, ...rest } = result.output as { missing?: string } & Record<string, unknown>;
-      if (missing && missing.trim()) {
-        // The worker said what it did not have instead of inventing it. The
-        // conductor reads this like any other result and can ask the user.
-        return {
-          ok: true,
-          input: rest,
-          result: `missing: ${clip(missing.trim(), 120)}. Ask the user or use another tool.`,
-          skipped: true,
-        };
-      }
-      args = rest;
+      if (input.tool.parameters instanceof z.ZodObject) {
+        const { missing, ...rest } = result.output as { missing?: string } & Record<
+          string,
+          unknown
+        >;
+        if (missing && missing.trim())
+          return { ok: true, input: rest, missing: clip(missing.trim(), 120) };
+        args = rest;
+      } else args = result.output;
     } catch (error) {
-      // Bad JSON or a schema miss is the model's mistake; anything else is a real error.
       if (NoObjectGeneratedError.isInstance(error))
         return { ok: false, reason: "tool-args-invalid" };
       throw error;
     }
+    // Output.object already validated and transformed the generated arguments.
+    // Parsing that output again would apply non-idempotent transforms twice.
+    return { ok: true, input: args };
   }
-
-  if (input.tool.writes) {
-    const decision = await input.confirm({
-      tool: input.tool.name,
-      input: args,
-      brief: input.brief,
-    });
-    const approved = typeof decision === "boolean" ? decision : decision.approved;
-    if (!approved) {
-      const reason = typeof decision === "object" && decision.reason ? `: ${decision.reason}` : "";
-      // Named like deepagents' rejection message so the model reads it as a
-      // decision, not an error to work around.
-      return {
-        ok: true,
-        input: args,
-        result: `declined by the user${reason}. Do not retry unless asked.`,
-        skipped: true,
-      };
-    }
-  }
-
-  const context: ToolContext = input.signal ? { signal: input.signal } : {};
-  let output: unknown;
-  try {
-    output = await input.tool.execute(args, context);
-  } catch (error) {
-    if ((error as { name?: string } | null)?.name === "AbortError") throw error;
-    // smolagents: "Error executing tool ... Please try again or use another tool".
-    // The conductor reads this and plans around it; two in a row is a real signal.
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      ok: true,
-      input: args,
-      result: `error: ${clip(message, 160)}. Try different arguments or another tool.`,
-      skipped: false,
-      failed: true,
-    };
-  }
-  const shaped = input.tool.toModelOutput
-    ? input.tool.toModelOutput(output)
-    : summarizeToolResult(output);
-  return { ok: true, input: args, result: shaped, skipped: false };
+  // No model call means no SDK validation; validate the empty input here once.
+  const parsed = await input.tool.parameters.safeParseAsync(args);
+  return parsed.success
+    ? { ok: true, input: parsed.data }
+    : { ok: false, reason: "tool-args-invalid" };
 };
 
 /** A tool with no parameters needs no model call at all. Apple says the same: run it directly. */
@@ -135,19 +90,25 @@ const runAnswerStep = async (input: {
   nudge?: string;
   /** The loop stalled; say what was found and what is open. */
   bestEffort?: boolean;
+  window?: number;
   signal?: AbortSignal;
 }): Promise<string> => {
   const prompt = answerUser({ ask: input.ask, summary: input.summary, steps: input.steps });
-  const result = await generateText({
-    model: input.model,
-    system: input.bestEffort
-      ? bestEffortSystem(input.instructions)
-      : answerSystem(input.instructions),
-    prompt: input.nudge ? `${prompt}\n\n${input.nudge}` : prompt,
-    ...(input.signal ? { abortSignal: input.signal } : {}),
-  });
+  const system = input.bestEffort
+    ? bestEffortSystem(input.instructions)
+    : answerSystem(input.instructions);
+  const finalPrompt = input.nudge ? `${prompt}\n\n${input.nudge}` : prompt;
+  if (input.window) assertPromptBudget("answer", system, finalPrompt, input.window);
+  const result = await modelCall("answer", () =>
+    generateText({
+      model: input.model,
+      system,
+      prompt: finalPrompt,
+      ...(input.signal ? { abortSignal: input.signal } : {}),
+    }),
+  );
   return result.text.trim();
 };
 
-export { needsArguments, runAnswerStep, runToolStep };
-export type { ToolStepOutcome };
+export { needsArguments, runAnswerStep, prepareToolCall };
+export type { PreparedToolCall };

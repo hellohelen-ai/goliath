@@ -22,6 +22,10 @@ Eight briefs on other agent harnesses live in the
 [`harness-survey.md`](https://github.com/hellohelen-ai/goliath/blob/main/docs/research/harness-survey.md)
 synthesises them.
 
+The [lifecycle extension comparison](https://github.com/hellohelen-ai/goliath/blob/main/docs/research/lifecycle-extensions.md)
+examines Claude Code, Grok Bot, Mastra, Eve, Deep Agents, and Hermes. It informed the
+[typed extension API](/goliath/guides/extensions/).
+
 ## The on-device round
 
 Five briefs on what was built for small on-device models, synthesised in

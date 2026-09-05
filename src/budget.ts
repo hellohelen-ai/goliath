@@ -1,4 +1,5 @@
 import type { ModelMessage } from "ai";
+import { GoliathBudgetError } from "./errors.js";
 
 /**
  * Tokens, estimated without a tokenizer. English runs near four characters
@@ -37,3 +38,16 @@ const fitWithin = (messages: ModelMessage[], budget: number): ModelMessage[] => 
 };
 
 export { estimateTokens, fitWithin, messageTokens, textOf, transcriptTokens };
+
+/** Reserve 30% of the window for output and provider/schema overhead. */
+const assertPromptBudget = (
+  phase: string,
+  system: string,
+  prompt: string,
+  window: number,
+): void => {
+  const tokens = estimateTokens(system) + estimateTokens(prompt);
+  const limit = Math.floor(window * 0.7);
+  if (tokens > limit) throw new GoliathBudgetError(phase, tokens, limit);
+};
+export { assertPromptBudget };

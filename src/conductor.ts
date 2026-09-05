@@ -1,6 +1,7 @@
 import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
 import { z } from "zod";
-import { estimateTokens } from "./budget.js";
+import { modelCall } from "./errors.js";
+import { assertPromptBudget, estimateTokens } from "./budget.js";
 import { clip } from "./compress/structural.js";
 import { conductorSystem, conductorUser } from "./prompts.js";
 import type { PlanExample, StepRecord, ToolMap, TraceEvent } from "./types.js";
@@ -83,6 +84,7 @@ const plan = async (input: {
   facts?: Record<string, string>;
   examples?: PlanExample[];
   signal?: AbortSignal;
+  strictBudget?: boolean;
 }): Promise<PlanOutcome> => {
   const toolNames = Object.keys(input.tools);
   const system = conductorSystem(input.instructions, input.tools, input.maxSteps, {
@@ -108,14 +110,17 @@ const plan = async (input: {
     tokens = estimateTokens(system) + estimateTokens(prompt);
     input.emit?.({ type: "budget", label: "conductor", tokens, limit });
   }
+  if (input.strictBudget) assertPromptBudget("plan", system, prompt, input.window);
   try {
-    const result = await generateText({
-      model: input.model,
-      output: Output.object({ schema: planSchemaFor(toolNames) }),
-      system,
-      prompt,
-      ...(input.signal ? { abortSignal: input.signal } : {}),
-    });
+    const result = await modelCall("plan", () =>
+      generateText({
+        model: input.model,
+        output: Output.object({ schema: planSchemaFor(toolNames) }),
+        system,
+        prompt,
+        ...(input.signal ? { abortSignal: input.signal } : {}),
+      }),
+    );
     const next = result.output;
     if (!next) return { ok: false, reason: "plan-invalid", hint: planInvalidHint(toolNames) };
     if (next.kind === "tool" && (!next.tool || !toolNames.includes(next.tool))) {

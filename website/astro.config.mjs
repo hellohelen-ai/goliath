@@ -48,6 +48,7 @@ export default defineConfig({
             { label: "Memory", slug: "guides/memory" },
             { label: "Fallback to the cloud", slug: "guides/fallback" },
             { label: "Facts and examples", slug: "guides/facts-and-examples" },
+            { label: "Lifecycle extensions", slug: "guides/extensions" },
             { label: "Tracing", slug: "guides/tracing" },
             { label: "Testing without a phone", slug: "guides/testing" },
             { label: "Evals", slug: "guides/evals" },

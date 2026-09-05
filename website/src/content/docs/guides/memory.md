@@ -54,3 +54,14 @@ const memory: Memory = {
 
 When a turn escalates, the fallback receives `summary` and `recent` alongside the step log. The
 cloud agent starts where the phone stopped, not from scratch.
+
+## Customizing recall and persistence
+
+The [`afterRecall` hook](/goliath/guides/extensions/) changes the transient memory view for a turn.
+Persistence starts from the originally loaded state, so those changes are not saved implicitly.
+`beforeRemember` can replace the scribe's candidate or skip saving. Answer transformations run
+before the exchange is saved; summaries and recent-history limits apply after memory transforms.
+
+After model-error fallback, including cloud-only session turns, Goliath preserves the existing
+summary and the latest three exchanges without calling the failed device again. Older exchanges
+are dropped on this route. Best-effort answers without a fallback are not saved.
