@@ -13,7 +13,7 @@
     "bundle": "expo export --platform ios --output-dir .expo-export"
   },
   "dependencies": {
-    "@hellohelen-ai/goliath": "^0.0.3",
+    "@hellohelen-ai/goliath": "file:..",
     "@react-native-ai/apple": "^0.12.0",
     "ai": "^7.0.91",
     "expo": "^54.0.0",

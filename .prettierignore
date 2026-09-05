@@ -5,3 +5,9 @@ coverage/
 
 # Conductor workspace scratch (gitignored; not ours to format)
 .context/
+
+# Generated example builds (local Expo module sources remain checked).
+example/ios/
+example/android/
+example/.expo/
+example/.expo-export/

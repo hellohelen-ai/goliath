@@ -1,12 +1,32 @@
-import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
+import { checkAbort, recentContext, resolveModel, snapshot } from "./context.js";
+import { isRepeat } from "./judge.js";
+import type { ModelSource, TokenCounter } from "./types.js";
+import { NoObjectGeneratedError, Output, generateText } from "ai";
 import { z } from "zod";
+import { budgetPrompt, clipTokens } from "./budget.js";
+import { trimSteps } from "./conductor.js";
 import { clip, summarizeToolResult } from "./compress/structural.js";
 import { answerSystem, answerUser, bestEffortSystem, workerSystem } from "./prompts.js";
-import type { Confirm, GoliathTool, StepRecord, ToolContext } from "./types.js";
+import type {
+  Confirm,
+  Exchange,
+  GoliathTool,
+  StepRecord,
+  ToolContext,
+  TraceEvent,
+} from "./types.js";
 
 type ToolStepOutcome =
-  | { ok: true; input: unknown; result: string; skipped: boolean; failed?: boolean }
-  | { ok: false; reason: "tool-args-invalid" };
+  | {
+      ok: true;
+      input: unknown;
+      result: string;
+      skipped: boolean;
+      failed?: boolean;
+      cached?: boolean;
+      output?: unknown;
+    }
+  | { ok: false; reason: "tool-args-invalid" | "repeated-tool-call" | "tool-prerequisite-missing" };
 
 /**
  * A worker gets a fresh context, one tool, and a one-line brief. The conductor
@@ -22,22 +42,64 @@ type ToolStepOutcome =
  * keeps the confirm step in Goliath's hands.
  */
 const runToolStep = async (input: {
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   instructions: string;
   tool: GoliathTool<any, any>;
   brief: string;
   ask: string;
+  summary?: string;
+  recent?: Exchange[];
+  steps?: StepRecord[];
   confirm: Confirm;
+  window: number;
+  emit?: (event: TraceEvent) => void;
   signal?: AbortSignal;
 }): Promise<ToolStepOutcome> => {
+  checkAbort(input.signal);
+  const steps = input.steps ?? [];
+  if (
+    input.tool.requires?.some(
+      (name) => !steps.some((step) => step.tool === name && !step.failed && !step.skipped),
+    )
+  ) {
+    return { ok: false, reason: "tool-prerequisite-missing" };
+  }
+  const context: ToolContext = {
+    ...(input.signal ? { signal: input.signal } : {}),
+    steps: snapshot(steps) ?? [],
+    recent: snapshot(input.recent ?? []) ?? [],
+  };
   let args: unknown = {};
   if (needsArguments(input.tool.parameters)) {
     try {
+      const output = Output.object({ schema: withMissing(input.tool.parameters) });
+      const system = workerSystem(input.instructions, input.brief);
+      const maxOutputTokens = 512;
+      const prompt = await budgetPrompt({
+        label: "worker",
+        window: input.window,
+        maxOutputTokens,
+        system,
+        prompt: answerUser({
+          ask: input.ask,
+          summary: clipTokens(input.summary ?? "", Math.floor(input.window / 8)),
+          recent: recentContext(input.recent ?? [], Math.floor(input.window / 8)),
+          steps: input.tool.requires?.length
+            ? steps.filter((step) => input.tool.requires!.includes(step.tool ?? ""))
+            : steps.slice(-1),
+        }),
+        responseFormat: await output.responseFormat,
+        ...(input.emit ? { emit: input.emit } : {}),
+        ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+      });
       const result = await generateText({
-        model: input.model,
-        output: Output.object({ schema: withMissing(input.tool.parameters) }),
-        system: workerSystem(input.instructions, input.brief),
-        prompt: input.ask,
+        model: resolveModel(input.model),
+        output,
+        system,
+        prompt,
+        maxOutputTokens,
+        maxRetries: 0,
         ...(input.signal ? { abortSignal: input.signal } : {}),
       });
       if (result.output === undefined) return { ok: false, reason: "tool-args-invalid" };
@@ -61,10 +123,46 @@ const runToolStep = async (input: {
     }
   }
 
+  checkAbort(input.signal);
+  if (input.tool.resolveInput) {
+    try {
+      args = await input.tool.resolveInput(args, context);
+      const parsed = await input.tool.parameters.safeParseAsync(args);
+      if (!parsed.success) return { ok: false, reason: "tool-args-invalid" };
+      args = parsed.data;
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === "AbortError") throw error;
+      return { ok: false, reason: "tool-args-invalid" };
+    }
+  }
+  checkAbort(input.signal);
+  const previous = [...steps]
+    .reverse()
+    .find((step) => isRepeat([step], { tool: input.tool.name, input: args }));
+  const readInvalidated =
+    previous &&
+    !input.tool.writes &&
+    steps.some((step) => step.index > previous.index && step.writes && !step.skipped);
+  if (previous && !readInvalidated) {
+    if (!input.tool.writes && !previous.cached && !previous.failed && !previous.skipped) {
+      return {
+        ok: true,
+        input: args,
+        result: `same as step ${previous.index + 1}`,
+        skipped: false,
+        cached: true,
+        output: previous.output,
+      };
+    }
+    return { ok: false, reason: "repeated-tool-call" };
+  }
+  // Preserve what was approved even if a tool mutates its argument object.
+  const recordedInput = snapshot(args);
+
   if (input.tool.writes) {
     const decision = await input.confirm({
       tool: input.tool.name,
-      input: args,
+      input: snapshot(args),
       brief: input.brief,
     });
     const approved = typeof decision === "boolean" ? decision : decision.approved;
@@ -74,14 +172,14 @@ const runToolStep = async (input: {
       // decision, not an error to work around.
       return {
         ok: true,
-        input: args,
+        input: recordedInput,
         result: `declined by the user${reason}. Do not retry unless asked.`,
         skipped: true,
       };
     }
   }
 
-  const context: ToolContext = input.signal ? { signal: input.signal } : {};
+  checkAbort(input.signal);
   let output: unknown;
   try {
     output = await input.tool.execute(args, context);
@@ -92,16 +190,29 @@ const runToolStep = async (input: {
     const message = error instanceof Error ? error.message : String(error);
     return {
       ok: true,
-      input: args,
+      input: recordedInput,
       result: `error: ${clip(message, 160)}. Try different arguments or another tool.`,
       skipped: false,
       failed: true,
     };
   }
-  const shaped = input.tool.toModelOutput
-    ? input.tool.toModelOutput(output)
-    : summarizeToolResult(output);
-  return { ok: true, input: args, result: shaped, skipped: false };
+  const recordedOutput = snapshot(output);
+  let shaped: string;
+  try {
+    shaped = input.tool.toModelOutput
+      ? input.tool.toModelOutput(output)
+      : summarizeToolResult(output);
+  } catch {
+    // Formatting must not erase the record of an action that already happened.
+    shaped = "completed (result could not be summarized)";
+  }
+  return {
+    ok: true,
+    input: recordedInput,
+    result: clip(shaped, 600),
+    skipped: false,
+    output: recordedOutput,
+  };
 };
 
 /** A tool with no parameters needs no model call at all. Apple says the same: run it directly. */
@@ -126,24 +237,51 @@ const withMissing = (schema: z.ZodType): z.ZodType =>
 
 /** The closing stone: turn the step log into two or three sentences. */
 const runAnswerStep = async (input: {
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   instructions: string;
   ask: string;
   summary: string;
+  recent?: Exchange[];
   steps: StepRecord[];
+  window: number;
+  emit?: (event: TraceEvent) => void;
   /** Appended on the one retry after an empty answer. */
   nudge?: string;
   /** The loop stalled; say what was found and what is open. */
   bestEffort?: boolean;
   signal?: AbortSignal;
 }): Promise<string> => {
-  const prompt = answerUser({ ask: input.ask, summary: input.summary, steps: input.steps });
+  checkAbort(input.signal);
+  const system = input.bestEffort
+    ? bestEffortSystem(input.instructions)
+    : answerSystem(input.instructions);
+  const render = (steps: StepRecord[]) => {
+    const base = answerUser({
+      ask: input.ask,
+      summary: clipTokens(input.summary, Math.floor(input.window / 8)),
+      recent: recentContext(input.recent ?? [], Math.floor(input.window / 8)),
+      steps,
+    });
+    return input.nudge ? `${base}\n\n${input.nudge}` : base;
+  };
+  const maxOutputTokens = 384;
+  const prompt = await budgetPrompt({
+    label: "answer",
+    window: input.window,
+    maxOutputTokens,
+    system,
+    prompt: render(input.steps),
+    compact: () => render(trimSteps(input.steps)),
+    ...(input.emit ? { emit: input.emit } : {}),
+    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+  });
   const result = await generateText({
-    model: input.model,
-    system: input.bestEffort
-      ? bestEffortSystem(input.instructions)
-      : answerSystem(input.instructions),
-    prompt: input.nudge ? `${prompt}\n\n${input.nudge}` : prompt,
+    model: resolveModel(input.model),
+    system,
+    prompt,
+    maxOutputTokens,
+    maxRetries: 0,
     ...(input.signal ? { abortSignal: input.signal } : {}),
   });
   return result.text.trim();

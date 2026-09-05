@@ -1,4 +1,4 @@
-import type { Memory, MemoryState } from "../types.js";
+import type { Exchange, Memory, MemoryState, StepRecord } from "../types.js";
 import { emptyMemory } from "./in-memory.js";
 
 /**
@@ -31,7 +31,34 @@ const isMemoryState = (value: unknown): value is MemoryState =>
   typeof value === "object" &&
   value !== null &&
   typeof (value as MemoryState).summary === "string" &&
-  Array.isArray((value as MemoryState).recent);
+  Array.isArray((value as MemoryState).recent) &&
+  (value as MemoryState).recent.every(isExchange);
+
+const isExchange = (value: unknown): value is Exchange => {
+  if (typeof value !== "object" || value === null) return false;
+  const exchange = value as Exchange;
+  return (
+    typeof exchange.ask === "string" &&
+    typeof exchange.answer === "string" &&
+    typeof exchange.at === "number" &&
+    Number.isFinite(exchange.at) &&
+    (exchange.steps === undefined ||
+      (Array.isArray(exchange.steps) && exchange.steps.every(isStep)))
+  );
+};
+
+const isStep = (value: unknown): value is StepRecord => {
+  if (typeof value !== "object" || value === null) return false;
+  const step = value as StepRecord;
+  return (
+    Number.isSafeInteger(step.index) &&
+    step.index >= 0 &&
+    (step.kind === "tool" || step.kind === "answer") &&
+    typeof step.brief === "string" &&
+    (step.result === undefined || typeof step.result === "string") &&
+    (step.text === undefined || typeof step.text === "string")
+  );
+};
 
 export { keyValueMemory };
 export type { KeyValueStore };

@@ -10,8 +10,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Optional `countTokens` and async `window` callbacks, plus model factories for fresh generation
+  contexts. Budget events identify native/provider counts versus estimates.
+- A local Expo module for Apple context capacity and iOS 26.4+ token counting. The example and
+  its CI checks now use the local library build.
+- `resolveInput` for deterministic reference-to-ID handoffs, validated before confirmation.
+  Full JSON-serializable tool outputs are retained in recent exchange records for application code.
+- Per-call context checks and budget trace events for planning, argument generation, answers,
+  and memory. Requests that still cannot fit escalate as `context-budget` before generation.
 - An example Expo app in `example/`, typechecked in CI so it cannot drift from the public API. It
   is not part of the published package.
+
+### Changed
+
+- Cap output tokens at every stage and include structured-output schemas and provider headroom
+  in input budgeting. Disable automatic SDK retries; the harness still retries invalid plans
+  and empty answers once.
+- Apply the 600-character tool-result cap to custom `toModelOutput` formatters too. Applications
+  that previously returned longer strings should filter or paginate their results.
+- Estimate non-ASCII text conservatively and clip memory with the same estimator.
+
+### Fixed
+
+- Recent exchanges now reach device prompts, including their completed/skipped action records.
+- Duplicate writes are blocked before confirmation and execution. Object key order and argument
+  mutation cannot evade the check. Read caches are invalidated after writes, and declared tool
+  prerequisites must have succeeded before execution.
+- Serialize turns on each instance. Failed memory saves and result formatters cannot erase a
+  completed action, and failed fallback calls are no longer invoked twice.
+- Planner compaction can no longer send a prompt that remains over budget. Final answers,
+  including best-effort answers, also compact older step results when needed.
+- Failed memory generation no longer replaces a completed answer with fallback. Preserve the
+  previous brief and latest exchanges, emit `memory-error`, and avoid reusing a failed device
+  session to summarize a cloud answer.
 
 ## [0.0.3] - 2026-09-03
 

@@ -272,7 +272,10 @@ describe("rules borrowed from other harnesses", () => {
       result: "missing: the time. Ask the user or use another tool.",
     });
     expect(result.text).toBe("When should I remind you to call mom?");
-    expect(result.trace[1]).toMatchObject({ type: "plan", why: "no time given" });
+    expect(result.trace.find((e) => e.type === "plan")).toMatchObject({
+      type: "plan",
+      why: "no time given",
+    });
     // The worker's schema carried the trailing `missing` field.
     const workerSchema = JSON.stringify(model.calls[1]?.responseFormat);
     expect(workerSchema).toContain('"missing"');
@@ -335,7 +338,7 @@ describe("rules borrowed from other harnesses", () => {
       [
         "You are Helen.",
         "Do exactly this: add the task",
-        "Fill in every argument from the ask, including optional ones you can see. Copy names, numbers, and dates exactly. If a required value is not in the ask, leave it empty and name it in `missing`.",
+        "Fill in every argument from the ask and supplied context, including optional ones you can see. Copy names, numbers, and dates exactly. If a required value is not in the ask, leave it empty and name it in `missing`.",
       ].join("\n"),
     );
     for (const slot of ["Goal:", "Done:", "Decisions:", "Pending:", "Next:"]) {

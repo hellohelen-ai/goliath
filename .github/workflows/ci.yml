@@ -21,8 +21,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
 
-  # The example is in-repo so it cannot rot: if the public API changes under it,
-  # this goes red.
+  # Build the checkout before installing the linked example dependency.
+  # The example exercises the API changed in this PR.
   example:
     runs-on: ubuntu-latest
     steps:
@@ -32,6 +32,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - run: bun install --frozen-lockfile
         working-directory: example
       - run: bun run typecheck

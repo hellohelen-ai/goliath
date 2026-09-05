@@ -34,10 +34,21 @@ const createTask = defineTool({
 
 const completeTask = defineTool({
   name: "completeTask",
-  description: "Mark a task done by its id.",
-  parameters: z.object({ id: z.number() }),
+  description: "Mark a listed task done by its exact title.",
+  parameters: z.object({ title: z.string(), id: z.number().optional() }),
+  requires: ["listTasks"],
+  resolveInput: ({ title }, context) => {
+    const listed = context.steps?.findLast((step) => step.tool === "listTasks")?.output;
+    const matches = z
+      .array(z.object({ id: z.number(), title: z.string() }))
+      .parse(listed)
+      .filter((task) => task.title === title);
+    if (matches.length !== 1) throw new Error("Choose exactly one listed task.");
+    return { title, id: matches[0]!.id };
+  },
   writes: true,
   execute: ({ id }) => {
+    if (id === undefined) throw new Error("A listed task must be selected first.");
     tasks = tasks.map((task) => (task.id === id ? { ...task, done: true } : task));
     return tasks.find((task) => task.id === id) ?? { error: `no task ${id}` };
   },

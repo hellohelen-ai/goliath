@@ -1,7 +1,9 @@
-import { generateText, type LanguageModel } from "ai";
-import { estimateTokens } from "./budget.js";
-import { scribeSystem, scribeUser } from "./prompts.js";
-import type { Exchange, MemoryState } from "./types.js";
+import { resolveModel } from "./context.js";
+import type { ModelSource, TokenCounter } from "./types.js";
+import { generateText } from "ai";
+import { budgetPrompt, clipTokens } from "./budget.js";
+import { scribeSystem, scribeUser, stepLog } from "./prompts.js";
+import type { Exchange, MemoryState, TraceEvent } from "./types.js";
 
 const RECENT_KEEP = 3;
 
@@ -11,47 +13,82 @@ const RECENT_KEEP = 3;
  * nothing, and the brief never grows past its budget.
  */
 const remember = async (input: {
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   state: MemoryState;
   exchange: Exchange;
   summaryBudget: number;
+  window?: number;
+  emit?: (event: TraceEvent) => void;
+  /** A failed device session must not be called again to remember a cloud answer. */
+  skipModel?: boolean;
   signal?: AbortSignal;
 }): Promise<MemoryState> => {
   const recent = [...input.state.recent, input.exchange];
-  let summary = input.state.summary;
+  let summary = clipTokens(input.state.summary, input.summaryBudget);
+  let skipModel = input.skipModel ?? false;
 
   while (recent.length > RECENT_KEEP) {
     const evicted = recent.shift();
     if (!evicted) break;
-    summary = await fold({
-      model: input.model,
-      summary,
-      exchange: evicted,
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
-  }
-
-  if (estimateTokens(summary) > input.summaryBudget) {
-    summary = summary.slice(0, input.summaryBudget * 4);
+    if (skipModel) continue;
+    try {
+      summary = clipTokens(
+        await fold({
+          model: input.model,
+          summary,
+          exchange: evicted,
+          window: input.window ?? 4096,
+          ...(input.emit ? { emit: input.emit } : {}),
+          ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+          ...(input.signal ? { signal: input.signal } : {}),
+        }),
+        input.summaryBudget,
+      );
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === "AbortError") throw error;
+      // Memory maintenance must never discard a completed answer or replay a turn.
+      skipModel = true;
+      input.emit?.({
+        type: "memory-error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   return { summary, recent };
 };
 
 const fold = async (input: {
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   summary: string;
   exchange: Exchange;
+  window: number;
+  emit?: (event: TraceEvent) => void;
   signal?: AbortSignal;
 }): Promise<string> => {
-  const result = await generateText({
-    model: input.model,
+  const maxOutputTokens = 192;
+  const prompt = await budgetPrompt({
+    label: "scribe",
+    window: input.window,
+    maxOutputTokens,
     system: scribeSystem,
     prompt: scribeUser({
       summary: input.summary,
       ask: input.exchange.ask,
       answer: input.exchange.answer,
+      actions: stepLog((input.exchange.steps ?? []).filter((step) => step.kind === "tool")),
     }),
+    ...(input.emit ? { emit: input.emit } : {}),
+    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+  });
+  const result = await generateText({
+    model: resolveModel(input.model),
+    system: scribeSystem,
+    prompt,
+    maxOutputTokens,
+    maxRetries: 0,
     ...(input.signal ? { abortSignal: input.signal } : {}),
   });
   const text = result.text.trim();
