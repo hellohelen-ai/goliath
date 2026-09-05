@@ -5,3 +5,4 @@ coverage/
 
 # Conductor workspace scratch (gitignored; not ours to format)
 .context/
+.astro/
