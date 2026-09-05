@@ -110,7 +110,8 @@ describe("runTurn", () => {
 
     expect(result.handledBy).toBe("cloud");
     expect(result.text).toBe("The cloud finished it.");
-    expect(result.trace.at(-2)).toMatchObject({ type: "escalate", reason: "repeated-tool-call" });
+    expect(result.trace.at(-3)).toMatchObject({ type: "escalate", reason: "repeated-tool-call" });
+    expect(result.trace.at(-2)).toMatchObject({ type: "answer", text: "The cloud finished it." });
     expect(received).toMatchObject({ reason: "repeated-tool-call", ask: "plan my week" });
     const steps = (received as { steps: { cached?: boolean; result?: string }[] }).steps;
     expect(steps).toHaveLength(2);

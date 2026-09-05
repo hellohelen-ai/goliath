@@ -10,8 +10,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Typed lifecycle extensions with ordered async hooks for run start, recall, planning, tools,
+  fallback, answers, memory, errors, and finalization. Includes per-run application context,
+  private extension state, tool denial, explicit stops, and extension error diagnostics.
+- Prompt budget checks when extensions are configured, covering every device model phase;
+  transformed tool results are bounded before entering the transcript.
 - An example Expo app in `example/`, typechecked in CI so it cannot drift from the public API. It
   is not part of the published package.
+
+### Fixed
+
+- Check repeated tool calls before execution so a duplicate write cannot execute twice. Failed
+  and skipped reads are no longer reused as cached successes.
+- Application and extension errors no longer trigger model-error fallback; fallback failures
+  reject without a second handoff attempt.
+- Session fallback now emits a complete trace and saves memory through the shared lifecycle.
+  Model-error fallback retains the previous summary and the latest three exchanges without
+  calling the failed device again; older exchanges are dropped on that route.
+- Cloud answers emit answer events, and saved summary limits include the token estimator's margin.
+
+### Deprecated
+
+- The unused `compressors` option. Use `afterTool` and `beforePlan` extensions instead.
 
 ## [0.0.3] - 2026-09-03
 

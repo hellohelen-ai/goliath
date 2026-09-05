@@ -16,16 +16,16 @@ const result = await goliath.run(ask, {
 });
 ```
 
-| Event      | When                                     | Carries                                    |
-| ---------- | ---------------------------------------- | ------------------------------------------ |
-| `recall`   | Memory loaded                            | `summary`, `recent` count                  |
-| `plan`     | The conductor decided a step             | `index`, `kind`, `tool?`, `why?`, `brief`  |
-| `confirm`  | A write was approved or declined         | `tool`, `approved`, `reason?`              |
-| `tool`     | A tool ran                               | `tool`, `input`, compressed `result`, `ms` |
-| `answer`   | The answer was written                   | `text`                                     |
-| `escalate` | The turn left the device                 | `reason`, `error?`                         |
-| `remember` | Memory saved                             | `summary`                                  |
-| `budget`   | A prompt was measured against the window | `label`, `tokens`, `limit`                 |
+| Event      | When                                            | Carries                                    |
+| ---------- | ----------------------------------------------- | ------------------------------------------ |
+| `recall`   | Memory loaded                                   | `summary`, `recent` count                  |
+| `plan`     | The conductor decided a step                    | `index`, `kind`, `tool?`, `why?`, `brief`  |
+| `confirm`  | A write was approved or declined                | `tool`, `approved`, `reason?`              |
+| `tool`     | A tool ran                                      | `tool`, `input`, compressed `result`, `ms` |
+| `answer`   | A device, cloud, or best-effort answer is ready | `text`                                     |
+| `escalate` | Escalation or a guardrail stop was requested    | `reason`, `error?`                         |
+| `remember` | Memory saved                                    | `summary`                                  |
+| `budget`   | A prompt was measured against the window        | `label`, `tokens`, `limit`                 |
 
 Every event is also collected on `result.trace`, and the step log on `result.steps`. The
 [example app](/goliath/project/example/) renders both on screen.
@@ -34,3 +34,10 @@ Every event is also collected on `result.trace`, and the step log on `result.ste
 
 `run(ask, { signal })` accepts an `AbortSignal`. It reaches every tool's `execute` through
 `context.signal` and the fallback through `request.signal`.
+
+## Lifecycle observers
+
+Use [`onError` and `onFinish` extension hooks](/goliath/guides/extensions/) for awaited error
+observation and cleanup. `onFinish` runs for successful, stopped, failed, and aborted turns.
+Unlike `onEvent` callbacks, failures from these cleanup observers are isolated and reported as
+secondary diagnostics. Behavior changes belong in the other typed lifecycle hooks.

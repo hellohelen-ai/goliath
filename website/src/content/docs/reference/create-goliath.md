@@ -25,7 +25,8 @@ goliath.sessionFallback; // boolean
 | `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
 | `facts`        | none                | `Record<string, string>` or a function called once per turn                |
 | `examples`     | none                | Two or three worked plans for the conductor. ~60 tokens per step each      |
-| `compressors`  | none                | Extra compressors run after the built-in structural pass                   |
+| `compressors`  | none                | Deprecated; never invoked. Use lifecycle extensions instead                |
+| `extensions`   | `[]`                | Ordered, awaited [lifecycle hooks](/goliath/guides/extensions/)            |
 | `onEvent`      | none                | Every trace event as it happens                                            |
 
 The `tools` map is re-keyed by each tool's own `name`, so the property names you use do not
@@ -38,7 +39,13 @@ matter.
 | `signal`  | An `AbortSignal`, passed to tools and the fallback                  |
 | `onEvent` | Called for this turn's events, in addition to the config-level hook |
 
-Returns a [`RunResult`](/goliath/reference/results/).
+`run` also accepts `context`, application data passed to extensions and tools without automatic
+prompt or memory injection. With `createGoliath<AppContext>(config)`, the context argument is
+required and checked against `AppContext`; existing untyped `run(ask)` calls still work.
+
+Returns a [`RunResult`](/goliath/reference/results/), including stop provenance and cleanup
+diagnostics when applicable. See [Lifecycle extensions](/goliath/guides/extensions/) for the hook
+contract. `window` must be positive and finite; `maxSteps` must be a nonnegative integer.
 
 ## `sessionFallback`
 
