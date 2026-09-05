@@ -240,6 +240,13 @@ Early. The core loop, compression, memory, judge, and eval runner are here and t
 scripted model. The example includes an Apple token-counting bridge; real-device quality and latency still need measurement. See `docs/` for the
 research behind the design.
 
+## Documentation
+
+Guides and the API reference are at
+[hellohelen-ai.github.io/goliath](https://hellohelen-ai.github.io/goliath/). The source is in
+[`website/`](./website), a separate Starlight app that is not part of the published package or
+the example's bundle.
+
 ## Example
 
 [`example/`](./example) is a one-screen Expo app that runs a real turn on the phone's own model —

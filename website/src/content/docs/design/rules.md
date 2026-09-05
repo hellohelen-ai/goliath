@@ -1,20 +1,11 @@
-# Design notes
+---
+title: Rules Goliath follows
+description: Every rule in the loop, where it came from, and where it lives in the code.
+---
 
-Three research briefs on the platform and five on what was built for small on-device models sit
-under `research/`. Each claim in them carries a source. The eight briefs on other agent harnesses
-live in the [helen repo](https://github.com/hellohelen-ai/helen/tree/main/docs/research/harnesses);
-[`research/harness-survey.md`](research/harness-survey.md) synthesises them;
-[`research/round2/README.md`](research/round2/README.md) synthesises the on-device round. This page
-is the short version: the rules Goliath follows, where each comes from, and where it lives in
-the code.
+Each rule below carries the reason it exists and the file that implements it.
 
-| Brief                                                                                  | What it settles                                                                                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`research/apple-foundation-models.md`](research/apple-foundation-models.md)           | The runtime: 4,096-token window shared by input and output (8,192 on newer iOS 27 devices), ~70 tokens per tool definition, 3 to 5 tools max, one request in flight, overflow kills the session, guardrail and refusal errors are not retryable                 |
-| [`research/rn-providers-and-ai-sdk.md`](research/rn-providers-and-ai-sdk.md)           | The bridge: `@react-native-ai/apple` pre-registers tools and runs Apple's loop inside one call, so `stopWhen` never fires and tool calls come back with empty ids; guided generation is real constrained decoding; the AI SDK v7 accepts V3 providers unchanged |
-| [`research/small-context-agent-patterns.md`](research/small-context-agent-patterns.md) | The harness: orchestrator sees summaries only, workers are stateless and narrow, small models fail multi-turn tool chains (8 to 56% vs 80%+ single-turn), never mix schema-constrained output with tool calls, escalate on structural signals                   |
-
-## Rules Goliath follows
+## Core rules
 
 | Rule                                                                                                           | Why                                                                                                                    | Where                                                        |
 | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -34,7 +25,7 @@ the code.
 | Token counts are chars/4 with a 15% margin until the provider exposes `countTokens`                            | Apple's tokenizer is private; the provider reports zero usage; chars/4 is within 10 to 20% on English                  | `budget.ts`                                                  |
 | Every fixture names the ask, the expected tool calls, and where the turn should finish                         | τ-bench style end-state checks; the phone-vs-cloud split is the number that matters                                    | `evals/`                                                     |
 
-### Rules borrowed from the harness survey
+## Borrowed from the harness survey
 
 | Rule                                                                                      | Why                                                                                            | Where                                     |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -48,7 +39,7 @@ the code.
 | The conductor sees the step budget and a finish hint at 80%                               | Hermes's wrap-up notice                                                                        | `prompts.ts` `stepsLeft`                  |
 | Workers never use placeholders or guess a value                                           | deepagents' Haiku profile                                                                      | `prompts.ts` `workerSystem`               |
 
-### Rules borrowed from the on-device round
+## Borrowed from the on-device round
 
 | Rule                                                                                         | Why                                                                                                                     | Where                                         |
 | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -65,6 +56,10 @@ the code.
 
 ## Open questions to settle on a device
 
-1. How well Apple's guided generation fills a tool's argument schema from a one-line brief, versus its native tool prompt. Run the evals both ways.
-2. How long a confirm can keep the user waiting before Apple's session times out. Goliath confirms outside the model call, so this should not bite, but measure it.
-3. Whether the Callstack provider's `main` branch (context-overflow error code, `countTokens`) ships before Goliath needs it. Until then the published 0.12.0 reports every error as a plain string.
+1. How well Apple's guided generation fills a tool's argument schema from a one-line brief, versus
+   its native tool prompt. Run the evals both ways.
+2. How long a confirm can keep the user waiting before Apple's session times out. Goliath confirms
+   outside the model call, so this should not bite, but measure it.
+3. Whether the Callstack provider's `main` branch (context-overflow error code, `countTokens`)
+   ships before Goliath needs it. Until then the published 0.12.0 reports every error as a plain
+   string.

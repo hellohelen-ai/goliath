@@ -45,6 +45,22 @@ jobs:
       - run: bun run bundle
         working-directory: example
 
+  # The docs site is a separate app. Build it on every PR so a broken page or a
+  # dead sidebar slug cannot reach main; docs.yml deploys it from main.
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+        working-directory: website
+      - run: bun run build
+        working-directory: website
+
   # Reanimated's rule: a change to the library is a change someone downstream reads about.
   # Add `no changelog` to the PR if it genuinely does not need an entry.
   changelog:
