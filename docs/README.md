@@ -1,8 +1,9 @@
 # Design notes
 
-Three research briefs on the platform, eight on other agent harnesses, and five on what was built
-for small on-device models sit under `research/`. Each claim in them carries a source.
-[`research/harness-survey.md`](research/harness-survey.md) synthesises the eight harnesses;
+Three research briefs on the platform and five on what was built for small on-device models sit
+under `research/`. Each claim in them carries a source. The eight briefs on other agent harnesses
+live in the [helen repo](https://github.com/hellohelen-ai/helen/tree/main/docs/research/harnesses);
+[`research/harness-survey.md`](research/harness-survey.md) synthesises them;
 [`research/round2/README.md`](research/round2/README.md) synthesises the on-device round. This page
 is the short version: the rules Goliath follows, where each comes from, and where it lives in
 the code.
