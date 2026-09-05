@@ -1,8 +1,9 @@
-import type { LanguageModel } from "ai";
+import { snapshot } from "./context.js";
+import { clipTokens, ContextBudgetError } from "./budget.js";
 import { z } from "zod";
 import { plan, planSchema, type Plan } from "./conductor.js";
 import { clip, summarizeToolResult } from "./compress/structural.js";
-import { judgeAnswer, judgeStep, judgeToolFailures } from "./judge.js";
+import { isRepeat, judgeAnswer, judgeStep, judgeToolFailures } from "./judge.js";
 import { DEFAULT_INSTRUCTIONS } from "./prompts.js";
 import { RECENT_KEEP, remember } from "./scribe.js";
 import {
@@ -21,6 +22,10 @@ import {
 import { GoliathBudgetError, ModelCallError, operation, OperationError } from "./errors.js";
 import type {
   Confirm,
+  Exchange,
+  ModelSource,
+  TokenCounter,
+  ToolContext,
   EscalationReason,
   Fallback,
   GoliathConfig,
@@ -36,7 +41,8 @@ import { prepareToolCall, runAnswerStep } from "./worker.js";
 
 type TurnInput<C = unknown> = {
   ask: string;
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   tools: ToolMap;
   memory: Memory;
   confirm: Confirm;
@@ -53,22 +59,43 @@ type TurnInput<C = unknown> = {
   sessionFallback?: boolean;
 };
 
-const exchangeSchema = z.object({ ask: z.string(), answer: z.string(), at: z.number().finite() });
+const stepSchema = z
+  .object({
+    index: z.number().int().nonnegative(),
+    kind: z.enum(["tool", "answer"]),
+    brief: z.string(),
+    tool: z.string().optional(),
+    input: z.unknown().optional(),
+    output: z.unknown().optional(),
+    writes: z.boolean().optional(),
+    result: z.string().optional(),
+    skipped: z.boolean().optional(),
+    cached: z.boolean().optional(),
+    failed: z.boolean().optional(),
+    skipReason: z.enum(["policy", "confirmation", "missing"]).optional(),
+    extension: z.string().optional(),
+    text: z.string().optional(),
+  })
+  .transform(
+    (step): StepRecord =>
+      Object.fromEntries(
+        Object.entries(step).filter(([, value]) => value !== undefined),
+      ) as StepRecord,
+  );
+const exchangeSchema = z
+  .object({
+    ask: z.string(),
+    answer: z.string(),
+    at: z.number().finite(),
+    steps: z.array(stepSchema).optional(),
+  })
+  .transform((exchange): Exchange => ({
+    ask: exchange.ask,
+    answer: exchange.answer,
+    at: exchange.at,
+    ...(exchange.steps ? { steps: exchange.steps } : {}),
+  }));
 const memorySchema = z.object({ summary: z.string(), recent: z.array(exchangeSchema) });
-const stepSchema = z.object({
-  index: z.number().int().nonnegative(),
-  kind: z.enum(["tool", "answer"]),
-  brief: z.string(),
-  tool: z.string().optional(),
-  input: z.unknown().optional(),
-  result: z.string().optional(),
-  skipped: z.boolean().optional(),
-  cached: z.boolean().optional(),
-  failed: z.boolean().optional(),
-  skipReason: z.enum(["policy", "confirmation", "missing"]).optional(),
-  extension: z.string().optional(),
-  text: z.string().optional(),
-});
 const toolInfo = (tool: ToolMap[string]): ToolInfo => ({
   name: tool.name,
   description: tool.description,
@@ -80,7 +107,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
   const hooks = createExtensionRunner(input.extensions ?? [], input.context as C, input.signal);
   const strictBudget = !!input.extensions?.length;
   const signal = input.signal ? { signal: input.signal } : {};
-  const budget = strictBudget ? { window: input.window } : {};
+  const budget = {
+    window: input.window,
+    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+  };
   let ask = input.ask;
   let instructions = input.instructions ?? DEFAULT_INSTRUCTIONS;
   let facts: Record<string, string> = {};
@@ -90,6 +120,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
   const trace: TraceEvent[] = [];
   const steps: StepRecord[] = [];
   let final: RunOutcome | undefined;
+  let escalating = false;
   const emit = (event: TraceEvent) => {
     trace.push(event);
     try {
@@ -151,8 +182,11 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       } catch (error) {
         // Only provider calls in the active loop can request recovery. Scribe failures
         // occur after an answer; do not send the turn through a second execution route.
-        if (!(error instanceof ModelCallError) || error.role === "scribe") throw error;
-        if (isGuardrail(error.cause)) {
+        if (escalating) throw error;
+        if (error instanceof ContextBudgetError && !strictBudget) {
+          completed = await escalate("context-budget", error.message);
+        } else if (!(error instanceof ModelCallError) || error.role === "scribe") throw error;
+        else if (isGuardrail(error.cause)) {
           emit({ type: "escalate", reason: "guardrail", error: describeError(error.cause) });
           completed = result("");
         } else completed = await escalate("model-error", describeError(error.cause));
@@ -217,20 +251,20 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       steps.push({ index: steps.length, kind: "answer", brief: options.brief, text });
     if (text) emit({ type: "answer", text });
     if (options.persist) {
-      const exchange = { ask, answer: text, at: Date.now() };
+      const exchange = { ask, answer: text, at: Date.now(), steps: snapshot(steps) ?? [] };
       checkAbort(input.signal);
       // A dead device is never asked to summarize the cloud's answer. Retain the
       // existing summary and the last three exchanges; older exchanges are dropped.
-      let next = options.deviceFailed
-        ? { summary: original.summary, recent: [...original.recent, exchange].slice(-RECENT_KEEP) }
-        : await remember({
-            model: input.model,
-            state: original,
-            exchange,
-            summaryBudget: Math.floor(input.window / 8),
-            ...signal,
-            ...budget,
-          });
+      let next = await remember({
+        model: input.model,
+        state: original,
+        exchange,
+        summaryBudget: Math.floor(input.window / 8),
+        skipModel: options.deviceFailed ?? false,
+        emit,
+        ...signal,
+        ...budget,
+      });
       let skip = false;
       await hooks.run(
         "beforeRemember",
@@ -245,11 +279,20 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       if (!skip) {
         // This cap includes the estimator's margin, unlike a plain tokens * 4 cut.
         next = {
-          summary: next.summary.slice(0, Math.floor((Math.floor(input.window / 8) * 4) / 1.15)),
+          summary: clipTokens(next.summary, Math.floor(input.window / 8)),
           recent: next.recent.slice(-RECENT_KEEP),
         };
         checkAbort(input.signal);
-        await operation("memory", () => input.memory.save(copyData(next)));
+        try {
+          await operation("memory", () => input.memory.save(copyData(next)));
+        } catch (error) {
+          if (isAbort(error)) throw error;
+          emit({
+            type: "memory-error",
+            error: describeError(error instanceof OperationError ? error.cause : error),
+          });
+          return result(text, options.bestEffort);
+        }
         emit({ type: "remember", summary: next.summary });
       }
     }
@@ -257,9 +300,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
   }
 
   async function escalate(reason: EscalationReason, error?: string): Promise<RunResult> {
+    escalating = true;
     emit({ type: "escalate", reason, ...(error ? { error } : {}) });
     if (!input.fallback) {
-      if (reason === "model-error") return result("");
+      if (reason === "model-error" || reason === "context-budget") return result("");
       let text = "";
       try {
         text = await runAnswerStep({
@@ -267,14 +311,18 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           instructions,
           ask,
           summary: state.summary,
+          recent: state.recent,
+          emit,
           steps,
           bestEffort: true,
           ...signal,
           ...budget,
         });
       } catch (failure) {
-        if (!(failure instanceof ModelCallError)) throw failure;
-        if (isGuardrail(failure.cause))
+        if (strictBudget && failure instanceof ContextBudgetError) throw failure;
+        if (!(failure instanceof ModelCallError) && !(failure instanceof ContextBudgetError))
+          throw failure;
+        if (failure instanceof ModelCallError && isGuardrail(failure.cause))
           emit({ type: "escalate", reason: "guardrail", error: describeError(failure.cause) });
       }
       return finishAnswer(text, { bestEffort: true, persist: false });
@@ -325,7 +373,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         .object({ text: z.string() })
         .parse(await input.fallback!({ ...copyData(request), ...signal })),
     );
-    return finishAnswer(response.text, { persist: true, deviceFailed: reason === "model-error" });
+    return finishAnswer(response.text, {
+      persist: true,
+      deviceFailed: reason === "model-error" || reason === "context-budget",
+    });
   }
 
   async function stones(): Promise<RunResult> {
@@ -361,12 +412,13 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
             tools: available,
             ask,
             summary: state.summary,
+            recent: state.recent,
+            ...(input.countTokens ? { countTokens: input.countTokens } : {}),
             steps,
             maxSteps: input.maxSteps,
             window: input.window,
             emit,
             facts,
-            strictBudget,
             ...(input.examples ? { examples: input.examples } : {}),
             ...(retryHint ? { retryHint } : {}),
             ...signal,
@@ -408,6 +460,8 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           instructions,
           ask,
           summary: state.summary,
+          recent: state.recent,
+          emit,
           steps,
           ...signal,
           ...budget,
@@ -421,6 +475,18 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       const tool =
         next.tool && Object.hasOwn(available, next.tool) ? available[next.tool] : undefined;
       if (!tool) return escalate("plan-invalid");
+      if (
+        tool.requires?.some(
+          (name) => !steps.some((step) => step.tool === name && !step.failed && !step.skipped),
+        )
+      )
+        return escalate("tool-prerequisite-missing");
+      const toolContext: ToolContext<C> = {
+        ...signal,
+        ...(input.context !== undefined ? { context: input.context } : {}),
+        steps: snapshot(steps) ?? [],
+        recent: snapshot(state.recent) ?? [],
+      };
       const started = Date.now();
       const prepared = await prepareToolCall({
         model: input.model,
@@ -428,6 +494,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         tool,
         brief: next.brief,
         ask,
+        summary: state.summary,
+        recent: state.recent,
+        steps,
+        emit,
         ...signal,
         ...budget,
       });
@@ -454,30 +524,33 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           text = `denied by extension ${error.extension}: ${clip(error.reason, 160)}. Do not retry unless asked.`;
         }
       }
+      if (!outcomeTool && tool.resolveInput) {
+        try {
+          const resolved = await tool.resolveInput(args, toolContext);
+          const parsed = await tool.parameters.safeParseAsync(resolved);
+          if (!parsed.success) return escalate("tool-args-invalid");
+          args = parsed.data;
+        } catch (error) {
+          if (isAbort(error)) throw error;
+          return escalate("tool-args-invalid");
+        }
+      }
+      checkAbort(input.signal);
+      let cachedOutput: unknown;
       if (!outcomeTool) {
-        const previous = steps.filter((s) => s.kind === "tool" && s.tool === tool.name).at(-1);
-        const sameInput = previous && JSON.stringify(previous.input) === JSON.stringify(args);
-        const emptyArgs =
-          args !== null && typeof args === "object" && Object.keys(args).length === 0;
-        if (
-          !tool.writes &&
-          emptyArgs &&
+        const previous = [...steps]
+          .reverse()
+          .find((step) => isRepeat([step], { tool: tool.name, input: args }));
+        const readInvalidated =
           previous &&
-          sameInput &&
-          !previous.cached &&
-          !previous.skipped &&
-          !previous.failed
-        ) {
-          outcomeTool = { status: "cached", fromStep: previous.index };
-          text = `same as step ${previous.index + 1}`;
-        } else {
-          // Detect duplicate writes before confirmation or execution, not after the effect.
-          const repeat = judgeStep({
-            steps,
-            maxSteps: input.maxSteps,
-            next: { tool: tool.name, input: args },
-          });
-          if (repeat) return escalate(repeat);
+          !tool.writes &&
+          steps.some((step) => step.index > previous.index && step.writes && !step.skipped);
+        if (previous && !readInvalidated) {
+          if (!tool.writes && !previous.cached && !previous.failed && !previous.skipped) {
+            outcomeTool = { status: "cached", fromStep: previous.index };
+            text = `same as step ${previous.index + 1}`;
+            cachedOutput = snapshot(previous.output);
+          } else return escalate("repeated-tool-call");
         }
       }
       if (!outcomeTool && tool.writes) {
@@ -500,17 +573,16 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         kind: "tool",
         brief: next.brief,
         tool: tool.name,
-        input: copyData(args),
+        input: snapshot(args),
+        ...(tool.writes ? { writes: true } : {}),
+        ...(cachedOutput !== undefined ? { output: cachedOutput } : {}),
         result: "(tool execution did not complete)",
       };
       steps.push(record);
       if (!outcomeTool) {
         let output: unknown;
         try {
-          output = await tool.execute(copyData(args), {
-            ...signal,
-            ...(input.context !== undefined ? { context: input.context } : {}),
-          });
+          output = await tool.execute(copyData(args), toolContext);
         } catch (error) {
           if (isAbort(error)) throw new OperationError("tool", error);
           outcomeTool = { status: "failed", error };
@@ -518,11 +590,15 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         }
         if (!outcomeTool) {
           outcomeTool = { status: "executed", output };
+          const recordedOutput = snapshot(output);
+          if (recordedOutput !== undefined) record.output = recordedOutput;
           record.result = "(tool executed; output processing did not complete)";
           checkAbort(input.signal);
-          text = await operation("formatter", () =>
-            tool.toModelOutput ? tool.toModelOutput(output) : summarizeToolResult(output),
-          );
+          try {
+            text = tool.toModelOutput ? tool.toModelOutput(output) : summarizeToolResult(output);
+          } catch {
+            text = "completed (result could not be summarized)";
+          }
         }
       }
       if (outcomeTool.status === "skipped") {
@@ -547,7 +623,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           text = z.string().parse(patch.result);
         },
       );
-      record.result = strictBudget ? summarizeToolResult(text) : text;
+      record.result = clip(text, 600);
       emit({
         type: "tool",
         tool: tool.name,

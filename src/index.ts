@@ -21,9 +21,11 @@ export type {
   GoliathTool,
   Memory,
   MemoryState,
+  ModelSource,
   RunResult,
   StepRecord,
   ToolContext,
+  TokenCounter,
   ToolMap,
   TraceEvent,
 } from "./types.js";

@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { appleContextOptions } from "../modules/goliath-context";
+
 import { completeTask, createTask, listTasks } from "@/tasks";
 
 /** A write tool never runs until the person says yes. */
@@ -35,7 +37,8 @@ export default function Home() {
   const goliath = useMemo(
     () =>
       createGoliath({
-        model: apple(),
+        model: () => apple(),
+        ...appleContextOptions(),
         tools: { listTasks, createTask, completeTask },
         confirm: ({ tool, input }) => askTheUser(tool, input),
         // No fallback here on purpose: this example is about what the phone
@@ -92,7 +95,9 @@ export default function Home() {
 
         {result !== null && (
           <View style={styles.result}>
-            <Text style={styles.answer}>{result.text}</Text>
+            <Text style={styles.answer}>
+              {result.text || "I couldn’t finish this request. Try asking for one smaller step."}
+            </Text>
             <Text style={styles.meta}>
               {result.handledBy === "device" ? "handled on device" : "escalated to the cloud"}
               {result.bestEffort === true ? " · best effort" : ""}
@@ -100,7 +105,7 @@ export default function Home() {
             {result.steps.map((step: StepRecord) => (
               <Text key={step.index} style={styles.step}>
                 {step.index + 1}. {step.brief}
-                {step.skipped === true ? " (declined)" : ""}
+                {step.skipped === true ? " (skipped)" : ""}
                 {step.cached === true ? " (cached)" : ""}
                 {step.failed === true ? " (failed)" : ""}
               </Text>

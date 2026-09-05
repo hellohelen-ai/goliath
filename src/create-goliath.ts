@@ -20,10 +20,10 @@ type Goliath<C = unknown> = {
 
 /** Build a reusable harness. Extension state is allocated separately for every run. */
 const createGoliath = <C = unknown>(config: GoliathConfig<C>): Goliath<C> => {
-  const window = config.window ?? DEFAULT_WINDOW;
+  if (typeof config.window === "number") validateWindow(config.window);
+  let lastWindow = typeof config.window === "number" ? config.window : DEFAULT_WINDOW;
+  let pending: Promise<unknown> = Promise.resolve();
   const maxSteps = config.maxSteps ?? DEFAULT_MAX_STEPS;
-  if (!Number.isFinite(window) || window <= 0)
-    throw new Error("window must be a positive finite number");
   if (!Number.isInteger(maxSteps) || maxSteps < 0)
     throw new Error("maxSteps must be a nonnegative integer");
   const memory = config.memory ?? inMemory();
@@ -44,9 +44,18 @@ const createGoliath = <C = unknown>(config: GoliathConfig<C>): Goliath<C> => {
     options: RunOptions<C> = {} as RunOptions<C>,
   ): Promise<RunResult> => {
     const sessionFallback = consecutiveModelErrors >= SESSION_FALLBACK_AFTER && !!config.fallback;
+    const window =
+      sessionFallback || options.signal?.aborted
+        ? lastWindow
+        : typeof config.window === "function"
+          ? await config.window()
+          : (config.window ?? DEFAULT_WINDOW);
+    validateWindow(window);
+    lastWindow = window;
     const result = await runTurn<C>({
       ask,
       model: config.model,
+      ...(config.countTokens ? { countTokens: config.countTokens } : {}),
       tools,
       memory,
       confirm,
@@ -76,11 +85,19 @@ const createGoliath = <C = unknown>(config: GoliathConfig<C>): Goliath<C> => {
     return result;
   };
   return {
-    run: run as Goliath<C>["run"],
+    run: ((ask: string, options?: RunOptions<C>) => {
+      const result = pending.then(() => run(ask, options));
+      pending = result.catch(() => undefined);
+      return result;
+    }) as Goliath<C>["run"],
     get sessionFallback() {
       return consecutiveModelErrors >= SESSION_FALLBACK_AFTER;
     },
   };
+};
+const validateWindow = (window: number): void => {
+  if (!Number.isSafeInteger(window) || window <= 0)
+    throw new Error("window must be a positive integer token count");
 };
 export { createGoliath, DEFAULT_MAX_STEPS, DEFAULT_WINDOW, SESSION_FALLBACK_AFTER };
 export type { Goliath, RunOptions };

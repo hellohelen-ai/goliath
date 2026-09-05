@@ -96,12 +96,13 @@ tool loop natively. Both fall over on a phone for the same reasons:
 
 | Option         | Default             | Notes                                                                      |
 | -------------- | ------------------- | -------------------------------------------------------------------------- |
-| `model`        | required            | Any AI SDK `LanguageModel`                                                 |
+| `model`        | required            | AI SDK model, or a factory returning one                                   |
 | `tools`        | `{}`                | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
 | `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like   |
 | `fallback`     | none                | Receives the ask, the brief, the step log, and the reason. Returns text    |
 | `confirm`      | approve all         | Asked before any `writes: true` tool runs                                  |
-| `window`       | `4096`              | Apple Foundation Models. The brief is budgeted at one eighth of it         |
+| `window`       | `4096`              | Input + output window; a number or async capacity callback                 |
+| `countTokens`  | estimate            | Optional async native/provider text tokenizer                              |
 | `maxSteps`     | `5`                 | Five stones                                                                |
 | `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
 | `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
@@ -156,6 +157,101 @@ results expose them in `result.diagnostics`. Keep `onEvent` for trace observatio
 See the [extension API and execution contract](https://hellohelen-ai.github.io/goliath/guides/extensions/)
 for every hook, return type, budget rule, and persistence detail.
 
+## Keeping requests inside the context window
+
+Every model call now budgets the system prompt, user prompt, and serialized output schema.
+Input is limited to 70% of `window`, or less if needed to reserve the output cap plus provider
+overhead (10% of the window, at least 128 tokens). Output caps are 256 tokens for planning, 512
+for tool arguments, 384 for answers, and 192 for memory updates. Setting `window: 8192` is only
+appropriate when the underlying model/session actually supports 8192 tokens.
+
+Before a call, the rolling brief is clipped to one eighth of the window. If a planner or answer
+prompt is still too large, older tool results are shortened while keeping every step and the
+newest result. Custom `toModelOutput` strings also have the 600-character cap. Return only the
+fields the next step needs; use filtering and pagination inside tools for larger datasets.
+
+Without lifecycle extensions, if the request still cannot fit, Goliath emits `escalate` with reason `context-budget` and calls
+your configured fallback with the original ask and step records. It does not truncate the current
+ask or instructions to squeeze an action through. Without a fallback, the result has empty text;
+use the trace reason to ask the user to narrow the request. A budget rejection does not count
+toward session fallback, because it says nothing about the device model's availability.
+With extensions configured, an oversized active-loop prompt instead rejects with `GoliathBudgetError`
+and runs `onError`/`onFinish`, preserving the extension API's failure contract.
+
+Use `onEvent` to inspect `{ type: "budget", label, tokens, limit, source }` for each attempted model
+call. `label` identifies `conductor`, `worker`, `answer`, or `scribe`. `source` is `tokenizer` when
+`countTokens` is configured and `estimate` otherwise. The counter sees the system text, serialized
+output schema, and prompt together. Provider framing and schema conversion still need headroom;
+these counts are not a guarantee about a provider's final native transcript. A failing counter
+stops generation rather than silently switching to an estimate.
+
+For a provider with native accounting:
+
+```ts
+const goliath = createGoliath({
+  model: () => apple(),
+  window: () => nativeContext.contextSize(),
+  countTokens: (text) => nativeContext.countTokens(text),
+  tools: { listTasks, createTask },
+});
+```
+
+`nativeContext` is your native bridge. The [example module](./example/modules/goliath-context/)
+implements it for Apple Foundation Models, with native counting on iOS 26.4+ and estimates on
+older releases. A model factory is called for each generation, including retries and memory
+updates. Providers must still start fresh sessions internally and honor `maxOutputTokens`.
+Calls to `run()` on one Goliath instance are serialized so overlapping requests cannot race its
+memory. See Apple's [context and token APIs](https://developer.apple.com/videos/play/wwdc2026/241/).
+
+Memory maintenance is best effort: an oversized or failed scribe call emits `memory-error`, keeps
+the previous brief and latest three exchanges, and preserves the completed answer. Evicted
+exchanges are not folded into the brief when that update fails. After a device model failure,
+remembering a cloud answer skips the device call altogether.
+
+## Task context and exact tool handoffs
+
+Recent conversation now reaches the planner, worker, and answer stages. It receives a separate
+one-eighth-window allowance, selected newest first. Workers also see the relevant prerequisite
+results, or the latest step when no prerequisites are declared. Step status explicitly identifies
+completed, skipped, failed, and cached actions.
+
+The model sees compact result strings. Application code can read the full JSON-serializable
+output from `StepRecord.output`, through `ToolContext.steps` for the current turn and
+`ToolContext.recent` for earlier exchanges. The last three stored exchanges also retain their
+step records. Raw outputs never enter device prompts automatically. Non-serializable outputs
+are omitted; keep durable or larger archives in the app's own store. Configured cloud fallbacks
+receive these records too, so their payloads can be larger than the device prompts.
+
+Use `resolveInput` when a short model-selected reference needs an exact value from a lookup:
+
+```ts
+const sendMessage = defineTool({
+  name: "sendMessage",
+  description: "Send a message using a contact reference from lookupContact.",
+  parameters: z.object({ contact: z.string(), text: z.string() }),
+  writes: true,
+  requires: ["lookupContact"],
+  resolveInput: (args, context) => {
+    const output = [...(context.steps ?? [])]
+      .reverse()
+      .find((step) => step.tool === "lookupContact")?.output;
+    // The app checks the selected reference and returns its canonical ID.
+    const contacts = z.array(z.object({ ref: z.string(), id: z.string() })).parse(output);
+    const selected = contacts.find((contact) => contact.ref === args.contact);
+    if (!selected) throw new Error("Unknown contact reference");
+    return { ...args, contact: selected.id };
+  },
+  execute: ({ contact, text }) => sendToContact(contact, text),
+});
+```
+
+Keep `resolveInput` free of side effects. Its output is validated against the tool schema before
+confirmation. Missing prerequisites stop the action with `tool-prerequisite-missing`. Duplicate
+arguments are checked after resolution and before confirmation or execution, regardless of object
+key order. An identical successful read can be reused once; a subsequent write invalidates it.
+Duplicate suppression is scoped to a turn. Apps still own transaction/idempotency guarantees
+across crashes, separate instances, or new user turns.
+
 ## Testing without a phone
 
 ```ts
@@ -193,7 +289,7 @@ That last line is the number this project exists for.
 ## Status
 
 Early. The core loop, compression, memory, judge, and eval runner are here and tested against a
-scripted model. On-device runs and the Apple provider adapter are next. See `docs/` for the
+scripted model. The example includes an Apple token-counting bridge; real-device quality and latency still need measurement. See `docs/` for the
 research behind the design.
 
 ## Documentation

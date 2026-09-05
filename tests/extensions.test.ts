@@ -91,11 +91,7 @@ describe("lifecycle extensions", () => {
   test("run context and private state are isolated across overlapping runs and never injected", async () => {
     const states = new Set<Map<string, unknown>>();
     const ids = new Set<string>();
-    let arrived = 0;
-    let release!: () => void;
-    const both = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    let active = 0;
     const extension: GoliathExtension<{ secret: string }> = {
       name: "isolation",
       async beforeRun({ state, context, runId }) {
@@ -103,11 +99,14 @@ describe("lifecycle extensions", () => {
         state.set("secret", context.secret);
         states.add(state);
         ids.add(runId);
-        if (++arrived === 2) release();
-        await both;
+        expect(active++).toBe(0);
+        await Promise.resolve();
       },
       afterAnswer({ state, context }) {
         expect(state.get("secret")).toBe(context.secret);
+      },
+      onFinish() {
+        active--;
       },
     };
     const model = fakeModel([modelAnswer, modelAnswer]);
@@ -740,7 +739,7 @@ describe("lifecycle extensions", () => {
   });
 
   test.each(["memory", "confirm", "formatter", "event", "fallback"] as const)(
-    "%s failures reject with original provenance and cannot trigger a second route",
+    "%s failures preserve their recovery behavior without a second route",
     async (origin) => {
       const failure = new Error("application safety failure");
       let cloud = 0;
@@ -789,8 +788,22 @@ describe("lifecycle extensions", () => {
           },
         ],
       });
-      await expect(goliath.run("read")).rejects.toBe(failure);
-      expect(observed).toBe(origin);
+      if (origin === "memory" || origin === "formatter") {
+        const result = await goliath.run("read");
+        expect(result.text).toBe("Seven.");
+        expect(observed).toBeUndefined();
+        expect(result.diagnostics).toHaveLength(1);
+        if (origin === "memory")
+          expect(result.trace).toContainEqual({ type: "memory-error", error: String(failure) });
+        else
+          expect(result.steps[0]).toMatchObject({
+            result: "completed (result could not be summarized)",
+            output: { secret: "private", value: 7 },
+          });
+      } else {
+        await expect(goliath.run("read")).rejects.toBe(failure);
+        expect(observed).toBe(origin);
+      }
       expect(cloud).toBe(origin === "fallback" ? 1 : 0);
       expect(goliath.sessionFallback).toBe(false);
     },
@@ -1053,27 +1066,32 @@ describe("extension edge paths", () => {
     let cloud = 0;
     let observed: string | undefined;
     const model = fakeModel([modelAnswer]); // The scribe exhausts the script.
-    await expect(
-      createGoliath({
-        model,
-        memory,
-        fallback: async () => {
-          cloud++;
-          return { text: "cloud" };
-        },
-        extensions: [
-          {
-            name: "audit",
-            onError: ({ origin }) => {
-              observed = origin;
-            },
+    const result = await createGoliath({
+      model,
+      memory,
+      fallback: async () => {
+        cloud++;
+        return { text: "cloud" };
+      },
+      extensions: [
+        {
+          name: "audit",
+          onError: ({ origin }) => {
+            observed = origin;
           },
-        ],
-      }).run("hi"),
-    ).rejects.toThrow("script exhausted");
+        },
+      ],
+    }).run("hi");
+    expect(result.text).toBe("Seven.");
+    expect(result.trace).toContainEqual(
+      expect.objectContaining({
+        type: "memory-error",
+        error: expect.stringContaining("script exhausted"),
+      }),
+    );
     expect(cloud).toBe(0);
-    expect(observed).toBe("model");
-    expect((await memory.load()).recent.at(-1)?.ask).toBe("a");
+    expect(observed).toBeUndefined();
+    expect((await memory.load()).recent.at(-1)?.ask).toBe("hi");
   });
 
   test("provider aborts retain model provenance and the original rejection", async () => {

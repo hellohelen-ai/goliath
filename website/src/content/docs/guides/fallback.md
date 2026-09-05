@@ -54,8 +54,9 @@ are dropped on that route.
 ## Customizing handoff
 
 Use an extension's `beforeFallback` hook to redact a copy of the outbound request or stop the run
-before any cloud call. It covers normal and session fallback. Hook and application failures reject
-instead of triggering model-error fallback, and a failing fallback is not invoked a second time.
+before any cloud call. It covers normal and session fallback. Hook failures reject instead of
+triggering model-error fallback, and a failing fallback is not invoked a second time. Memory-save
+and tool-formatting failures preserve completed work without a cloud handoff.
 See [Lifecycle extensions](/goliath/guides/extensions/).
 
 ## No fallback

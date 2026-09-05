@@ -35,6 +35,36 @@ describe("keyValueMemory", () => {
     expect(await memory.load()).toEqual({ summary: "", recent: [] });
     store.data.set("goliath.memory", JSON.stringify({ summary: 1 }));
     expect(await memory.load()).toEqual({ summary: "", recent: [] });
+    store.data.set("goliath.memory", JSON.stringify({ summary: "", recent: [null] }));
+    expect(await memory.load()).toEqual({ summary: "", recent: [] });
+  });
+
+  test("tool records and exact outputs survive persistence", async () => {
+    const memory = keyValueMemory(fakeStore());
+    const state = {
+      summary: "",
+      recent: [
+        {
+          ask: "Add",
+          answer: "Done",
+          at: 1,
+          steps: [
+            {
+              index: 0,
+              kind: "tool" as const,
+              brief: "add",
+              tool: "add",
+              writes: true,
+              input: { title: "dentist" },
+              result: "added",
+              output: { id: "exact-id" },
+            },
+          ],
+        },
+      ],
+    };
+    await memory.save(state);
+    expect(await memory.load()).toEqual(state);
   });
 });
 

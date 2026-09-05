@@ -1,10 +1,12 @@
-import { NoObjectGeneratedError, Output, generateText, type LanguageModel } from "ai";
-import { z } from "zod";
 import { modelCall } from "./errors.js";
-import { assertPromptBudget, estimateTokens } from "./budget.js";
+import { checkAbort, recentContext, resolveModel } from "./context.js";
+import type { ModelSource, TokenCounter } from "./types.js";
+import { NoObjectGeneratedError, Output, generateText } from "ai";
+import { z } from "zod";
+import { budgetPrompt, clipTokens, PROMPT_SHARE } from "./budget.js";
 import { clip } from "./compress/structural.js";
 import { conductorSystem, conductorUser } from "./prompts.js";
-import type { PlanExample, StepRecord, ToolMap, TraceEvent } from "./types.js";
+import type { Exchange, PlanExample, StepRecord, ToolMap, TraceEvent } from "./types.js";
 
 /**
  * The next stone. Flat on purpose: three fields is what a 3B model fills in
@@ -55,10 +57,9 @@ const noSuchToolHint = (name: string | undefined, toolNames: string[]): string =
 
 /**
  * Apple's window is input plus output, and the overflow error kills the
- * session, so the conductor's prompt must stay well under it. Past this share
- * of the window, older step results are clipped to a line before prompting.
+ * session, so the conductor's prompt must stay well under it. When the input
+ * budget is tight, older step results are clipped to a line before prompting.
  */
-const PROMPT_SHARE = 0.7;
 const CLIPPED_RESULT_CHARS = 100;
 
 const trimSteps = (steps: StepRecord[]): StepRecord[] =>
@@ -70,11 +71,13 @@ const trimSteps = (steps: StepRecord[]): StepRecord[] =>
 
 /** Ask the model what to do next, with only the ask, the brief, and the step log in view. */
 const plan = async (input: {
-  model: LanguageModel;
+  model: ModelSource;
+  countTokens?: TokenCounter;
   instructions: string;
   tools: ToolMap;
   ask: string;
   summary: string;
+  recent?: Exchange[];
   steps: StepRecord[];
   maxSteps: number;
   window: number;
@@ -84,38 +87,43 @@ const plan = async (input: {
   facts?: Record<string, string>;
   examples?: PlanExample[];
   signal?: AbortSignal;
-  strictBudget?: boolean;
 }): Promise<PlanOutcome> => {
+  checkAbort(input.signal);
   const toolNames = Object.keys(input.tools);
   const system = conductorSystem(input.instructions, input.tools, input.maxSteps, {
     ...(input.facts ? { facts: input.facts } : {}),
     ...(input.examples ? { examples: input.examples } : {}),
   });
-  const limit = Math.floor(input.window * PROMPT_SHARE);
-  let steps = input.steps;
+  const output = Output.object({ schema: planSchemaFor(toolNames) });
   const render = (log: StepRecord[]) => {
     const base = conductorUser({
       ask: input.ask,
-      summary: input.summary,
+      summary: clipTokens(input.summary, Math.floor(input.window / 8)),
+      recent: recentContext(input.recent ?? [], Math.floor(input.window / 8)),
       steps: log,
       maxSteps: input.maxSteps,
     });
     return input.retryHint ? `${base}\n\n${input.retryHint}` : base;
   };
-  let prompt = render(steps);
-  let tokens = estimateTokens(system) + estimateTokens(prompt);
-  if (tokens > limit) {
-    steps = trimSteps(steps);
-    prompt = render(steps);
-    tokens = estimateTokens(system) + estimateTokens(prompt);
-    input.emit?.({ type: "budget", label: "conductor", tokens, limit });
-  }
-  if (input.strictBudget) assertPromptBudget("plan", system, prompt, input.window);
+  const maxOutputTokens = 256;
+  const prompt = await budgetPrompt({
+    label: "conductor",
+    window: input.window,
+    maxOutputTokens,
+    system,
+    prompt: render(input.steps),
+    responseFormat: await output.responseFormat,
+    compact: () => render(trimSteps(input.steps)),
+    ...(input.emit ? { emit: input.emit } : {}),
+    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+  });
   try {
     const result = await modelCall("plan", () =>
       generateText({
-        model: input.model,
-        output: Output.object({ schema: planSchemaFor(toolNames) }),
+        model: resolveModel(input.model),
+        output,
+        maxOutputTokens,
+        maxRetries: 0,
         system,
         prompt,
         ...(input.signal ? { abortSignal: input.signal } : {}),

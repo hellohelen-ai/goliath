@@ -138,7 +138,9 @@ candidate or skip saving. Best-effort answers retain the existing behavior of no
 After a model-error handoff, including session fallback, Goliath retains the previous summary and
 the latest three exchanges without asking the failed device to summarize. Older exchanges are
 dropped on this route. Normal routes use the scribe to fold evicted exchanges into the summary.
-A scribe failure after producing an answer rejects instead of executing the turn again in cloud.
+A scribe or memory-save failure preserves the completed answer and emits `memory-error`; it never
+executes the turn again in cloud. A failed tool formatter retains the full output and substitutes
+a bounded completion message. These recovered failures finish as completed outcomes.
 
 ## Errors, cancellation, and limits
 
@@ -159,12 +161,16 @@ notifies error/finalization hooks. Callbacks receive the signal and should coope
 the harness cannot forcibly interrupt arbitrary JavaScript or undo a started side effect.
 Cleanup hooks still run after cancellation. There are no automatic hook timeouts.
 
-With extensions configured, tool result strings are capped at 600 characters and prompts must
-fit within 70% of the configured window after the conductor's structural trimming. This check
-covers planning, argument generation, answers/retries/best effort, and the scribe. Oversized
-protected text rejects with exported `GoliathBudgetError` before a provider call. Estimates cover
-rendered text, not an exact provider tokenizer; the remaining 30% reserves space for output and
-schema/provider overhead. Existing no-extension prompt behavior is preserved.
+Tool result strings, including extension replacements, are capped at 600 characters. Every model
+call budgets the rendered prompt and output schema after transformations, using `countTokens`
+when configured or a conservative estimate otherwise. Input is capped at 70% of the window or
+less to reserve each phase's output cap and provider headroom. With extensions configured,
+oversized active-loop prompts reject with exported `GoliathBudgetError` before generation;
+without extensions, they escalate as `context-budget`. Scribe failures preserve completed answers.
+Native counts still require headroom for the provider's final transcript formatting.
+
+Runs on one instance are serialized, including their hooks; extension state remains private to
+each run. Hooks must not wait for another run on the same instance to start or finish.
 
 Saved summaries are capped at one eighth of the window using the token estimator, and saved
 recent history is limited to three exchanges, including after memory transformations. Registering

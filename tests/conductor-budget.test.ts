@@ -48,13 +48,13 @@ describe("conductor budget", () => {
     });
     expect(outcome.ok).toBe(true);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "budget", label: "conductor", limit: 716 });
+    expect(events[0]).toMatchObject({ type: "budget", label: "conductor", limit: 640 });
     const sent = JSON.stringify(model.calls[0]?.prompt);
     expect(sent).toContain("item 3-7");
     expect(sent).not.toContain("item 0-7");
   });
 
-  test("under the share, nothing is trimmed and no event fires", async () => {
+  test("under the share, nothing is trimmed and the budget is still reported", async () => {
     const model = fakeModel([{ json: { kind: "answer", brief: "reply" } }]);
     const events: unknown[] = [];
     await plan({
@@ -68,7 +68,7 @@ describe("conductor budget", () => {
       window: 4096,
       emit: (e) => events.push(e),
     });
-    expect(events).toHaveLength(0);
+    expect(events).toHaveLength(1);
     expect(JSON.stringify(model.calls[0]?.prompt)).toContain("item 0-7");
   });
 });

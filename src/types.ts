@@ -2,6 +2,11 @@ import type { LanguageModel, ModelMessage } from "ai";
 import type { z } from "zod";
 import type { ExtensionDiagnostic, GoliathExtension, HookPhase } from "./extensions.js";
 
+/** A factory lets stateful providers create a fresh model/session for each generation. */
+type ModelSource = LanguageModel | (() => LanguageModel);
+/** Count text with the same tokenizer as the model. Provider framing is reserved separately. */
+type TokenCounter = (text: string) => number | Promise<number>;
+
 /**
  * A tool the phone's model may call. Keep the schema flat and the
  * description one sentence: a 3B model reads every word of it on every step.
@@ -13,9 +18,12 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
   /** True when the tool changes something. Goliath asks before running it. */
   writes?: boolean;
   execute: (input: INPUT, context: ToolContext) => Promise<OUTPUT> | OUTPUT;
+  /** Resolve selected references from full earlier outputs before validation and confirmation. */
+  resolveInput?: (input: INPUT, context: ToolContext) => INPUT | Promise<INPUT>;
   /**
    * What the model sees. The app keeps the full output; the model gets this
-   * string. Default: `key: value` lines capped at 600 characters.
+   * string, capped at 600 characters even with a custom formatter.
+   * Default: `key: value` lines.
    */
   toModelOutput?: (output: OUTPUT) => string;
   /**
@@ -30,6 +38,10 @@ type ToolContext<C = unknown> = {
   /** Application context supplied to run; never injected into prompts automatically. */
   context?: C;
   signal?: AbortSignal;
+  /** Earlier steps in this turn. Full JSON-serializable outputs stay outside model prompts. */
+  steps?: readonly StepRecord[];
+  /** Latest exchanges, including their tool records when available. */
+  recent?: readonly Exchange[];
 };
 
 type ToolMap = Record<string, GoliathTool<any, any>>;
@@ -46,6 +58,8 @@ type Exchange = {
   ask: string;
   answer: string;
   at: number;
+  /** Exact arguments, outcomes, and JSON-serializable outputs from this exchange. */
+  steps?: StepRecord[];
 };
 
 type Memory = {
@@ -62,7 +76,7 @@ type FallbackRequest = {
   recent: Exchange[];
   steps: StepRecord[];
   reason: EscalationReason;
-  /** The model or provider error message, when `reason` is "model-error". */
+  /** Details for model failures or requests rejected by the context budget guard. */
   error?: string;
   signal?: AbortSignal;
 };
@@ -78,6 +92,8 @@ type EscalationReason =
   | "tool-args-invalid"
   | "tool-error"
   | "guardrail"
+  | "context-budget"
+  | "tool-prerequisite-missing"
   | "model-error";
 
 /** One stone thrown: what the conductor decided and what the worker did. */
@@ -89,6 +105,10 @@ type StepRecord = {
   input?: unknown;
   /** The compressed tool result the transcript carries forward. */
   result?: string;
+  /** Full JSON-serializable output for application code. Never rendered into a prompt. */
+  output?: unknown;
+  /** A state-changing tool was selected; used to invalidate earlier read results. */
+  writes?: boolean;
   skipped?: boolean;
   /** Served from an earlier identical step; nothing ran. */
   cached?: boolean;
@@ -125,7 +145,14 @@ type TraceEvent =
   | { type: "answer"; text: string }
   | { type: "escalate"; reason: EscalationReason; error?: string }
   | { type: "remember"; summary: string }
-  | { type: "budget"; label: string; tokens: number; limit: number };
+  | { type: "memory-error"; error: string }
+  | {
+      type: "budget";
+      label: string;
+      tokens: number;
+      limit: number;
+      source?: "tokenizer" | "estimate";
+    };
 
 type RunResult = {
   text: string;
@@ -149,14 +176,16 @@ type GoliathConfig<C = unknown> = {
   /** Awaited in array order. Hooks change behavior; onEvent observes it. */
   extensions?: readonly GoliathExtension<C>[];
   /** Any AI SDK language model. On a phone, `apple()` from `@react-native-ai/apple`. */
-  model: LanguageModel;
+  model: ModelSource;
   tools?: ToolMap;
   memory?: Memory;
   fallback?: Fallback;
   /** Asked before any tool with `writes: true` runs. Default approves everything. */
   confirm?: Confirm;
-  /** Context window in tokens. Apple Foundation Models: 4096. */
-  window?: number;
+  /** Total input + output window in tokens. Every model call is budgeted. Default 4096. */
+  window?: number | (() => number | Promise<number>);
+  /** Optional native/provider tokenizer. A failing counter stops generation rather than guessing. */
+  countTokens?: TokenCounter;
   /** Most stones the conductor may throw in one turn. Default 5. */
   maxSteps?: number;
   /** @deprecated This option is unused. Use afterTool and beforePlan extensions instead. */
@@ -198,10 +227,12 @@ export type {
   GoliathTool,
   Memory,
   MemoryState,
+  ModelSource,
   PlanExample,
   RunResult,
   StepRecord,
   ToolContext,
   ToolMap,
+  TokenCounter,
   TraceEvent,
 };
