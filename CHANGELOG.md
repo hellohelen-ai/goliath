@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-05
+
+This release contains a breaking rename; see **Changed**.
+
 ### Added
 
 - Typed lifecycle extensions with ordered async hooks for run start, recall, planning, tools,
@@ -106,7 +110,8 @@ First release.
 - An eval runner scoring fixtures with `pass^k` over repeated runs, per-fixture escalation
   expectations, and forbidden words.
 
-[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.0.3...HEAD
+[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/hellohelen-ai/goliath/compare/v0.0.3...v0.1.0
 [0.0.3]: https://github.com/hellohelen-ai/goliath/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/hellohelen-ai/goliath/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/hellohelen-ai/goliath/releases/tag/v0.0.1
