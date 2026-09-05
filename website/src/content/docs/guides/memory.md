@@ -26,7 +26,7 @@ Lives for the process. The default, and what tests use.
 
 ```ts
 import { inMemory } from "@hellohelen-ai/goliath";
-createGoliath({ model, memory: inMemory() });
+createAgent({ model, memory: inMemory() });
 ```
 
 ### `keyValueMemory`
@@ -38,7 +38,7 @@ wrapper. Corrupt data reads as empty.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { keyValueMemory } from "@hellohelen-ai/goliath";
 
-createGoliath({ model, memory: keyValueMemory(AsyncStorage, "assistant.memory") });
+createAgent({ model, memory: keyValueMemory(AsyncStorage, "assistant.memory") });
 ```
 
 ### Your own

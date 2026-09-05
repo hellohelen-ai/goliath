@@ -3,7 +3,7 @@ title: Lifecycle extensions
 description: Customize planning, tools, fallback, answers, and memory with typed lifecycle hooks.
 ---
 
-`createGoliath({ extensions: [...] })` accepts named objects implementing `GoliathExtension`.
+`createAgent({ extensions: [...] })` accepts named objects implementing `GoliathExtension`.
 All hooks are optional, synchronous or asynchronous, and run sequentially in registration order,
 including `after*` hooks. Names must be nonempty and unique. Factories can return extension objects
 to package application-specific configuration; no plugin loader or runtime dependency is needed.
@@ -11,7 +11,7 @@ to package application-specific configuration; no plugin loader or runtime depen
 ## Context and state
 
 ```ts
-import { createGoliath, type GoliathExtension } from "@hellohelen-ai/goliath";
+import { createAgent, type GoliathExtension } from "@hellohelen-ai/goliath";
 
 type Context = { timezone: string; allowCloud: boolean };
 
@@ -26,8 +26,8 @@ const contextExtension: GoliathExtension<Context> = {
   },
 };
 
-const goliath = createGoliath<Context>({ model, extensions: [contextExtension] });
-await goliath.run("What is on today?", {
+const agent = createAgent<Context>({ model, extensions: [contextExtension] });
+await agent.run("What is on today?", {
   context: { timezone: "America/New_York", allowCloud: false },
 });
 ```

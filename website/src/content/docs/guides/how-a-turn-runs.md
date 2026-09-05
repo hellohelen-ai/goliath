@@ -6,7 +6,7 @@ description: The stages of one Goliath turn and what each one sees.
 ```
 ask ──► recall ──► conductor ──► worker ──► judge ──► … ──► answer ──► remember
             │          │            │          │
-         memory    next stone   fresh ctx   stalled?
+         memory    next step    fresh ctx   stalled?
          brief     (JSON, 3     one tool    → fallback
                     fields)     ≤600 chars
 ```
@@ -19,7 +19,7 @@ ask ──► recall ──► conductor ──► worker ──► judge ──
 | **Answer**    | The ask, the brief, the step log                        | Two or three sentences                                                               |
 | **Scribe**    | The last three exchanges                                | A rolling brief of at most 60 words, updated only when an exchange falls off         |
 
-Nothing a worker saw survives the step. The conductor never sees raw JSON. That is the whole trick.
+Nothing a worker saw survives the step. The conductor never sees raw JSON. Those two rules keep the planner's context bounded regardless of tool output size.
 
 ## The conductor
 

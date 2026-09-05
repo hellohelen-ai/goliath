@@ -1,7 +1,7 @@
 {
   "name": "@hellohelen-ai/goliath",
   "version": "0.0.3",
-  "description": "An agent harness for the phone's own model. Apple Foundation Models, a 4k window, one stone.",
+  "description": "An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.",
   "license": "MIT",
   "repository": {
     "type": "git",

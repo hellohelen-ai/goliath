@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool, inMemory } from "../src/index.js";
+import { createAgent, defineTool, inMemory } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 import { budgetPrompt } from "../src/budget.js";
 
@@ -9,7 +9,7 @@ describe("provider token accounting", () => {
     let windows = 0;
     const model = fakeModel([{ text: "answer" }]);
     const ask = "x".repeat(12_000);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       window: async () => {
         windows++;
@@ -45,7 +45,7 @@ describe("provider token accounting", () => {
       parameters: z.object({ name: z.string().describe("Exact contact name") }),
       execute: () => "found",
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model: () => fakeModel(scripts[created++] ?? []),
       tools: { lookup },
       countTokens: async (text) => {
@@ -70,7 +70,7 @@ describe("provider token accounting", () => {
 
   test("an oversized native count blocks the request despite a small character estimate", async () => {
     const model = fakeModel([]);
-    const result = await createGoliath({ model, countTokens: async () => 5000 }).run("hi");
+    const result = await createAgent({ model, countTokens: async () => 5000 }).run("hi");
     expect(model.calls).toHaveLength(0);
     expect(result.trace).toContainEqual(
       expect.objectContaining({ type: "escalate", reason: "context-budget" }),
@@ -97,7 +97,7 @@ describe("provider token accounting", () => {
 
   test.each([NaN, -1, Infinity, 1.2])("invalid counts never reach the model", async (count) => {
     const model = fakeModel([]);
-    const result = await createGoliath({ model, countTokens: () => count }).run("hi");
+    const result = await createAgent({ model, countTokens: () => count }).run("hi");
     expect(model.calls).toHaveLength(0);
     expect(result.trace).toContainEqual(
       expect.objectContaining({
@@ -110,7 +110,7 @@ describe("provider token accounting", () => {
 
   test("a failed tokenizer does not silently switch to an estimate", async () => {
     const model = fakeModel([]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       countTokens: async () => {
         throw new Error("tokenizer unavailable");
@@ -124,7 +124,7 @@ describe("provider token accounting", () => {
 
   test("invalid detected capacity rejects before generation", async () => {
     const model = fakeModel([]);
-    await expect(createGoliath({ model, window: async () => 0 }).run("hi")).rejects.toThrow(
+    await expect(createAgent({ model, window: async () => 0 }).run("hi")).rejects.toThrow(
       "positive integer",
     );
     expect(model.calls).toHaveLength(0);
@@ -134,11 +134,11 @@ describe("provider token accounting", () => {
     const controller = new AbortController();
     controller.abort();
     const model = fakeModel([{ text: "Hello" }]);
-    const goliath = createGoliath({ model });
-    await expect(goliath.run("cancel", { signal: controller.signal })).rejects.toMatchObject({
+    const agent = createAgent({ model });
+    await expect(agent.run("cancel", { signal: controller.signal })).rejects.toMatchObject({
       name: "AbortError",
     });
-    expect((await goliath.run("hello")).text).toBe("Hello");
+    expect((await agent.run("hello")).text).toBe("Hello");
     expect(model.calls).toHaveLength(1);
   });
 });

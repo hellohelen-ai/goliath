@@ -10,7 +10,7 @@ Today's date, the timezone, the user's name. Apple's guidance is to run the tool
 when the model always needs the result; facts are that rule as config.
 
 ```ts
-createGoliath({
+createAgent({
   model: apple(),
   tools,
   facts: () => ({
@@ -29,7 +29,7 @@ Two or three worked plans shown to the conductor. The format is fixed by guided 
 examples do not buy format; they buy tool choice and ordering.
 
 ```ts
-createGoliath({
+createAgent({
   model: apple(),
   tools,
   examples: [

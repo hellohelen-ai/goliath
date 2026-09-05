@@ -4,7 +4,7 @@ description: Two tools, a confirmation, and a fallback, in thirty lines.
 ---
 
 ```ts
-import { createGoliath, defineTool } from "@hellohelen-ai/goliath";
+import { createAgent, defineTool } from "@hellohelen-ai/goliath";
 import { apple } from "@react-native-ai/apple";
 import { z } from "zod";
 
@@ -19,18 +19,18 @@ const createTask = defineTool({
   name: "createTask",
   description: "Add a task.",
   parameters: z.object({ title: z.string() }),
-  writes: true, // Goliath asks before running it
+  writes: true, // confirmed before it runs
   execute: ({ title }) => convex.mutation(api.tasks.create, { title }),
 });
 
-const goliath = createGoliath({
+const agent = createAgent({
   model: apple(),
   tools: { listTasks, createTask },
   confirm: async ({ tool, input }) => askTheUser(tool, input),
   fallback: async ({ ask, summary, steps }) => cloudAgent.turn({ ask, summary, steps }),
 });
 
-const result = await goliath.run("if I don't already have it, add call the dentist");
+const result = await agent.run("if I don't already have it, add call the dentist");
 result.text; // "Added Call the dentist. You now have three open tasks."
 result.handledBy; // "device" | "cloud"
 result.steps; // what it did, one line each

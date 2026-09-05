@@ -24,7 +24,7 @@ original outcome. See the [extension guide](/goliath/guides/extensions/#errors-c
 
 ## `StepRecord`
 
-One stone thrown: what the conductor decided and what the worker did.
+One step: what the conductor decided and what the worker did.
 
 | Field        | Notes                                                               |
 | ------------ | ------------------------------------------------------------------- |

@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for looking. Goliath is small on purpose, and the constraint that shapes every decision is
-the 4,096-token window on the phone's own model. A change that spends tokens has to earn them.
+Goliath is small on purpose. The constraint that shapes every decision is the 4,096-token
+context window on the device model. A change that spends tokens has to earn them.
 
 ## Getting set up
 
@@ -46,7 +46,7 @@ Open the PR against `main`. CI has to be green. If the change is user-visible, a
 
 ## Releases
 
-Maintainers only, and deliberately boring.
+Maintainers only.
 
 Before cutting anything, run the **release-preflight** workflow from the Actions tab. It builds
 the exact tarball a release would push, installs those bytes into a clean project, and uploads

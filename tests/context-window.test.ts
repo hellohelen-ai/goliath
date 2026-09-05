@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { clipTokens, estimateTokens } from "../src/budget.js";
-import { createGoliath, defineTool, inMemory, type FallbackRequest } from "../src/index.js";
+import { createAgent, defineTool, inMemory, type FallbackRequest } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 import { runAnswerStep } from "../src/worker.js";
 
@@ -22,7 +22,7 @@ describe("context window protection", () => {
     "oversized asks stop before any model call",
     async (ask) => {
       const model = fakeModel([]);
-      const result = await createGoliath({ model }).run(ask);
+      const result = await createAgent({ model }).run(ask);
       expect(model.calls).toHaveLength(0);
       expect(result.trace).toContainEqual(
         expect.objectContaining({ type: "escalate", reason: "context-budget" }),
@@ -33,7 +33,7 @@ describe("context window protection", () => {
   test("an oversized planner prompt is rejected even after compaction", async () => {
     const model = fakeModel([]);
     let received: FallbackRequest | undefined;
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { look },
       facts: { document: "x".repeat(30_000) },
@@ -62,7 +62,7 @@ describe("context window protection", () => {
         return "done";
       },
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { write },
       confirm: async () => {
@@ -87,8 +87,8 @@ describe("context window protection", () => {
     const ask = "x".repeat(12_000);
     const small = fakeModel([]);
     const large = fakeModel([{ text: "answer" }]);
-    await createGoliath({ model: small, window: 4096 }).run(ask);
-    const result = await createGoliath({ model: large, window: 8192 }).run(ask);
+    await createAgent({ model: small, window: 4096 }).run(ask);
+    const result = await createAgent({ model: large, window: 8192 }).run(ask);
     expect(small.calls).toHaveLength(0);
     expect(result.text).toBe("answer");
     expect(large.calls[0]?.maxOutputTokens).toBe(384);
@@ -101,7 +101,7 @@ describe("context window protection", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "found it" },
     ]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { look: { ...look, toModelOutput: () => "x".repeat(30_000) } },
     }).run("find it");
@@ -124,7 +124,7 @@ describe("context window protection", () => {
       parameters: z.object({ query: z.string() }),
       execute: () => "hello",
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { find },
       memory: inMemory({ summary: "old", recent: oldExchanges }),
@@ -168,10 +168,10 @@ describe("context window protection", () => {
 
   test("budget rejections do not mark the device session as broken", async () => {
     const model = fakeModel([{ text: "hello" }]);
-    const goliath = createGoliath({ model, fallback: async () => ({ text: "cloud answer" }) });
-    for (let i = 0; i < 3; i++) await goliath.run("x".repeat(30_000));
-    expect(goliath.sessionFallback).toBe(false);
-    const result = await goliath.run("hello");
+    const agent = createAgent({ model, fallback: async () => ({ text: "cloud answer" }) });
+    for (let i = 0; i < 3; i++) await agent.run("x".repeat(30_000));
+    expect(agent.sessionFallback).toBe(false);
+    const result = await agent.run("hello");
     expect(result.text).toBe("hello");
     expect(result.handledBy).toBe("device");
     // The oversized evicted exchange cannot fit in the scribe either.
@@ -182,7 +182,7 @@ describe("context window protection", () => {
     const model = fakeModel([{ text: "completed answer" }]);
     const memory = inMemory({ summary: "previous brief", recent: oldExchanges });
     let fallbacks = 0;
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       memory,
       fallback: async () => {
@@ -201,7 +201,7 @@ describe("context window protection", () => {
   test("a failed device session is not reused to remember a cloud answer", async () => {
     const model = fakeModel([]);
     const memory = inMemory({ summary: "previous brief", recent: oldExchanges });
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       memory,
       fallback: async () => ({ text: "cloud answer" }),
@@ -221,6 +221,6 @@ describe("context window protection", () => {
   });
 
   test.each([0, -1, NaN, Infinity, 0.5])("invalid windows fail at configuration: %s", (window) => {
-    expect(() => createGoliath({ model: fakeModel([]), window })).toThrow("positive integer");
+    expect(() => createAgent({ model: fakeModel([]), window })).toThrow("positive integer");
   });
 });

@@ -7,7 +7,7 @@ description: Script the model and assert on exactly what the harness sent.
 script.
 
 ```ts
-import { createGoliath } from "@hellohelen-ai/goliath";
+import { createAgent } from "@hellohelen-ai/goliath";
 import { fakeModel } from "@hellohelen-ai/goliath/testing";
 
 const model = fakeModel([
@@ -17,8 +17,8 @@ const model = fakeModel([
   { text: "You have two tasks: buy milk and call mom." },
 ]);
 
-const goliath = createGoliath({ model, tools: { listTasks } });
-const result = await goliath.run("what's on my list");
+const agent = createAgent({ model, tools: { listTasks } });
+const result = await agent.run("what's on my list");
 
 expect(result.handledBy).toBe("device");
 expect(model.remaining()).toBe(0);

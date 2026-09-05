@@ -27,6 +27,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Changed
 
+- **Breaking.** `createGoliath` is renamed to `createAgent`, and the returned `Goliath` type is
+  renamed to `Agent`. The configuration object and its options are unchanged.
 - Cap output tokens at every stage and include structured-output schemas and provider headroom
   in input budgeting. Disable automatic SDK retries; the harness still retries invalid plans
   and empty answers once.

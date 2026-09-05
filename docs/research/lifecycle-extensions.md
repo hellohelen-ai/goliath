@@ -15,18 +15,18 @@ tokens, or runtime dependencies. Extensions that inject text still consume the c
 
 ## What is configurable today
 
-| Existing API                        | Current capability                                              | Remaining gap                                                                         |
-| ----------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `instructions`, `facts`, `examples` | Supply prompt context; facts can be computed once per turn      | No asynchronous per-run context preparation or per-step changes                       |
-| `tools`, `toModelOutput`            | Supply tool implementations and format their successful results | No shared policy or transformation across tools                                       |
-| `confirm`                           | Approve or decline writes, with a reason                        | No general gate for reads, cache access, or cloud handoff                             |
-| `memory`                            | Replace storage through `load` and `save`                       | No explicit separation between transient recall edits and durable memory edits        |
-| `fallback`                          | Replace cloud execution                                         | No independent policy/redaction chain before handoff                                  |
-| `onEvent`                           | Observe trace events synchronously                              | No awaited lifecycle decisions or transformations                                     |
-| `compressors`                       | Declared in `GoliathConfig`                                     | Currently unused: `createGoliath` does not forward it and the loop does not invoke it |
+| Existing API                        | Current capability                                              | Remaining gap                                                                       |
+| ----------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `instructions`, `facts`, `examples` | Supply prompt context; facts can be computed once per turn      | No asynchronous per-run context preparation or per-step changes                     |
+| `tools`, `toModelOutput`            | Supply tool implementations and format their successful results | No shared policy or transformation across tools                                     |
+| `confirm`                           | Approve or decline writes, with a reason                        | No general gate for reads, cache access, or cloud handoff                           |
+| `memory`                            | Replace storage through `load` and `save`                       | No explicit separation between transient recall edits and durable memory edits      |
+| `fallback`                          | Replace cloud execution                                         | No independent policy/redaction chain before handoff                                |
+| `onEvent`                           | Observe trace events synchronously                              | No awaited lifecycle decisions or transformations                                   |
+| `compressors`                       | Declared in `GoliathConfig`                                     | Currently unused: `createAgent` does not forward it and the loop does not invoke it |
 
 These findings come from [configuration](../../src/types.ts),
-[construction](../../src/create-goliath.ts), [the turn loop](../../src/run-turn.ts),
+[construction](../../src/create-agent.ts), [the turn loop](../../src/run-turn.ts),
 and [the worker](../../src/worker.ts).
 
 ## What the six frameworks contribute
@@ -96,7 +96,7 @@ const policy: GoliathExtension<AppContext> = {
   },
 };
 
-const goliath = createGoliath<AppContext>({
+const agent = createAgent<AppContext>({
   model,
   tools,
   extensions: [policy, redactResults(), formatAnswers()],
@@ -104,7 +104,7 @@ const goliath = createGoliath<AppContext>({
   fallback: cloudAgent,
 });
 
-await goliath.run("What is on my calendar?", {
+await agent.run("What is on my calendar?", {
   context: { allowCloud: false, canWrite: false, timezone: "America/New_York" },
 });
 ```
@@ -222,7 +222,7 @@ bounded text. Arbitrary extension memory fields should not silently become model
 ## Changes needed in the current harness
 
 1. **Unify entry and finalization.** The session fallback branch in
-   [create-goliath.ts](../../src/create-goliath.ts) bypasses `runTurn`, returns an empty trace, and
+   [create-agent.ts](../../src/create-agent.ts) bypasses `runTurn`, returns an empty trace, and
    skips memory saving. It must share start, recall, fallback policy, answer, and finish hooks.
    Persisting this route must not invoke the device already known to be failing: use bounded
    deterministic memory maintenance on that route, with its information-loss tradeoff documented.

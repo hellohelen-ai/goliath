@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool, inMemory } from "../src/index.js";
+import { createAgent, defineTool, inMemory } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 
 const tasks: { title: string }[] = [{ title: "Buy milk" }, { title: "Call mom" }];
@@ -34,7 +34,7 @@ describe("runTurn", () => {
       { text: "Added Buy eggs. You now have three tasks." },
     ]);
     const confirms: string[] = [];
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { listTasks, createTask },
       confirm: async ({ tool }) => {
@@ -43,7 +43,7 @@ describe("runTurn", () => {
       },
     });
 
-    const result = await goliath.run("add buy eggs to my list");
+    const result = await agent.run("add buy eggs to my list");
 
     expect(result.handledBy).toBe("device");
     expect(result.text).toBe("Added Buy eggs. You now have three tasks.");
@@ -67,13 +67,13 @@ describe("runTurn", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Okay, I did not add it." },
     ]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { createTask },
       confirm: async () => false,
     });
 
-    const result = await goliath.run("add nope");
+    const result = await agent.run("add nope");
 
     expect(tasks.length).toBe(before);
     expect(result.steps[0]?.skipped).toBe(true);
@@ -89,7 +89,7 @@ describe("runTurn", () => {
       { text: "brief after cloud" },
     ]);
     let received: unknown;
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { listTasks },
       memory: inMemory({
@@ -106,7 +106,7 @@ describe("runTurn", () => {
       },
     });
 
-    const result = await goliath.run("plan my week");
+    const result = await agent.run("plan my week");
 
     expect(result.handledBy).toBe("cloud");
     expect(result.text).toBe("The cloud finished it.");
@@ -127,9 +127,9 @@ describe("runTurn", () => {
       { text: "still not json" },
       { text: "I could not work out what to do with that." },
     ]);
-    const goliath = createGoliath({ model, tools: { listTasks } });
+    const agent = createAgent({ model, tools: { listTasks } });
 
-    const result = await goliath.run("hello");
+    const result = await agent.run("hello");
 
     expect(result.handledBy).toBe("device");
     expect(result.bestEffort).toBe(true);
@@ -149,8 +149,8 @@ describe("runTurn", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "I cannot email, but here is your list." },
     ]);
-    const goliath = createGoliath({ model, tools: { listTasks } });
-    const result = await goliath.run("email my list");
+    const agent = createAgent({ model, tools: { listTasks } });
+    const result = await agent.run("email my list");
     expect(result.text).toBe("I cannot email, but here is your list.");
     expect(JSON.stringify(model.calls[1]?.prompt)).toContain("tool must be one of: listTasks");
   });
@@ -161,8 +161,8 @@ describe("runTurn", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Hello." },
     ]);
-    const goliath = createGoliath({ model, tools: { listTasks } });
-    const result = await goliath.run("hello");
+    const agent = createAgent({ model, tools: { listTasks } });
+    const result = await agent.run("hello");
     expect(result.text).toBe("Hello.");
     expect(result.handledBy).toBe("device");
   });
@@ -173,7 +173,7 @@ describe("runTurn", () => {
       { text: "not an object" },
     ]);
     let reason: string | undefined;
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { createTask },
       fallback: async (request) => {
@@ -181,7 +181,7 @@ describe("runTurn", () => {
         return { text: "cloud" };
       },
     });
-    const result = await goliath.run("add something");
+    const result = await agent.run("add something");
     expect(result.handledBy).toBe("cloud");
     expect(reason).toBe("tool-args-invalid");
   });
@@ -189,9 +189,9 @@ describe("runTurn", () => {
   test("with no tools it answers directly and remembers", async () => {
     const memory = inMemory();
     const model = fakeModel([{ text: "Hi there." }]);
-    const goliath = createGoliath({ model, memory });
+    const agent = createAgent({ model, memory });
 
-    const result = await goliath.run("hi");
+    const result = await agent.run("hi");
 
     expect(result.text).toBe("Hi there.");
     expect(model.calls).toHaveLength(1);
@@ -207,14 +207,14 @@ describe("runTurn", () => {
       { json: { kind: "tool", tool: "createTask", brief: "2" } },
       { json: { title: "two" } },
     ]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { createTask },
       maxSteps: 2,
       fallback: async () => ({ text: "cloud" }),
     });
 
-    const result = await goliath.run("loop");
+    const result = await agent.run("loop");
 
     expect(result.handledBy).toBe("cloud");
     expect(result.trace.some((e) => e.type === "escalate" && e.reason === "too-many-steps")).toBe(

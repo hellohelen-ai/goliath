@@ -17,7 +17,7 @@ PASS  plan-week          cloud     301ms
 5/5 passed · 4 on device · 1 escalated
 ```
 
-That last line is the number this project exists for.
+The on-device share on the last line is the primary metric for this project.
 
 ## Running them
 

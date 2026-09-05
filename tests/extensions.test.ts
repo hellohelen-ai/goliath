@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import {
-  createGoliath,
+  createAgent,
   defineTool,
   inMemory,
   estimateTokens,
@@ -27,13 +27,13 @@ const stop = { action: "stop" as const, text: "Stopped.", reason: "test-policy" 
 
 // Compile-time checks: context is required only for callers choosing a concrete type.
 const checkContextTypes = () => {
-  const typed = createGoliath<{ user: string }>({ model: fakeModel([]) });
+  const typed = createAgent<{ user: string }>({ model: fakeModel([]) });
   // @ts-expect-error A typed application context is required.
   void typed.run("hello");
   // @ts-expect-error Context cannot have the wrong shape.
   void typed.run("hello", { context: { user: 123 } });
   void typed.run("hello", { context: { user: "alice" } });
-  void createGoliath({ model: fakeModel([]) }).run("hello");
+  void createAgent({ model: fakeModel([]) }).run("hello");
 };
 void checkContextTypes;
 
@@ -42,7 +42,7 @@ describe("lifecycle extensions", () => {
     const order: string[] = [];
     const memory = inMemory();
     const model = fakeModel([planAnswer, modelAnswer]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { read },
       memory,
@@ -110,10 +110,10 @@ describe("lifecycle extensions", () => {
       },
     };
     const model = fakeModel([modelAnswer, modelAnswer]);
-    const goliath = createGoliath({ model, extensions: [extension] });
+    const agent = createAgent({ model, extensions: [extension] });
     const results = await Promise.all([
-      goliath.run("one", { context: { secret: "PRIVATE-A" } }),
-      goliath.run("two", { context: { secret: "PRIVATE-B" } }),
+      agent.run("one", { context: { secret: "PRIVATE-A" } }),
+      agent.run("two", { context: { secret: "PRIVATE-B" } }),
     ]);
     expect(states.size).toBe(2);
     expect(ids.size).toBe(2);
@@ -124,7 +124,7 @@ describe("lifecycle extensions", () => {
   test("recall transformations are transient and snapshots cannot mutate the persistence base", async () => {
     const memory = inMemory({ summary: "original", recent: [] });
     const model = fakeModel([modelAnswer]);
-    await createGoliath({
+    await createAgent({
       model,
       memory,
       extensions: [
@@ -143,7 +143,7 @@ describe("lifecycle extensions", () => {
 
   test("tool filtering is intersection-only, includes synthetic plans, and prevents plan reinsertion", async () => {
     const model = fakeModel([modelAnswer]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { read },
       extensions: [
@@ -159,7 +159,7 @@ describe("lifecycle extensions", () => {
         },
       ],
     });
-    await expect(goliath.run("hi")).rejects.toMatchObject({
+    await expect(agent.run("hi")).rejects.toMatchObject({
       name: "GoliathExtensionError",
       phase: "afterPlan",
       extension: "reinsert",
@@ -170,7 +170,7 @@ describe("lifecycle extensions", () => {
   test("planning context reaches the prompt and attempt numbers identify malformed-plan retries", async () => {
     const attempts: number[] = [];
     const model = fakeModel([{ text: "invalid" }, planAnswer, modelAnswer]);
-    await createGoliath({
+    await createAgent({
       model,
       tools: { read },
       extensions: [
@@ -205,7 +205,7 @@ describe("lifecycle extensions", () => {
       planAnswer,
       modelAnswer,
     ]);
-    await createGoliath<{ user: string }>({
+    await createAgent<{ user: string }>({
       model,
       tools: { write },
       confirm: async (request) => {
@@ -233,7 +233,7 @@ describe("lifecycle extensions", () => {
       { json: { kind: "tool", tool: "write", brief: "write" } },
       { json: { value: 1 } },
     ]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { write },
       confirm: async () => {
@@ -246,9 +246,9 @@ describe("lifecycle extensions", () => {
       },
       extensions: [{ name: "bad", beforeTool: () => ({ input: { value: "invalid" } }) }],
     });
-    await expect(goliath.run("write")).rejects.toBeInstanceOf(GoliathExtensionError);
+    await expect(agent.run("write")).rejects.toBeInstanceOf(GoliathExtensionError);
     expect(calls).toBe(0);
-    expect(goliath.sessionFallback).toBe(false);
+    expect(agent.sessionFallback).toBe(false);
   });
 
   test("denial ends the chain and records policy provenance for no-argument tools", async () => {
@@ -262,7 +262,7 @@ describe("lifecycle extensions", () => {
       },
     };
     const outcomes: ToolOutcome["status"][] = [];
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([planRead, planAnswer, modelAnswer]),
       tools: { tool },
       extensions: [
@@ -303,7 +303,7 @@ describe("lifecycle extensions", () => {
         return "value";
       },
     };
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([planRead, planRead, planRead, planAnswer, modelAnswer]),
       tools: { tool },
       maxSteps: 5,
@@ -337,7 +337,7 @@ describe("lifecycle extensions", () => {
           return "value";
         },
       };
-      const result = await createGoliath({
+      const result = await createAgent({
         model: fakeModel([planRead, planRead]),
         tools: { tool },
         fallback: async () => ({ text: "cloud" }),
@@ -357,7 +357,7 @@ describe("lifecycle extensions", () => {
 
   test("successful output is transformed before the transcript and trace, and capped", async () => {
     const model = fakeModel([planRead, planAnswer, modelAnswer]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { read },
       extensions: [
@@ -391,7 +391,7 @@ describe("lifecycle extensions", () => {
       },
     });
     const pick = { json: { kind: "tool", tool: "write", brief: "write" } };
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([pick, pick]),
       tools: { write },
       confirm: async () => {
@@ -408,7 +408,7 @@ describe("lifecycle extensions", () => {
   test("fallback payload transformations do not mutate local steps or persist redacted recall", async () => {
     const memory = inMemory({ summary: "local secret", recent: [] });
     let received: FallbackRequest | undefined;
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([]),
       memory,
       maxSteps: 0,
@@ -443,7 +443,7 @@ describe("lifecycle extensions", () => {
       throw new Error("device unavailable");
     };
     const memory = inMemory();
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       memory,
       fallback: async () => {
@@ -475,17 +475,17 @@ describe("lifecycle extensions", () => {
         },
       ],
     });
-    for (let i = 0; i < 3; i++) await goliath.run(`turn ${i}`);
-    expect(goliath.sessionFallback).toBe(true);
+    for (let i = 0; i < 3; i++) await agent.run(`turn ${i}`);
+    expect(agent.sessionFallback).toBe(true);
     phases.length = 0;
-    const result = await goliath.run("fourth");
+    const result = await agent.run("fourth");
     expect(phases).toEqual(["start", "recall", "fallback", "answer", "memory", "finish"]);
     expect(calls).toBe(3);
     expect(cloud).toBe(4);
     expect(result.trace.map((e) => e.type)).toEqual(["recall", "escalate", "answer", "remember"]);
     expect((await memory.load()).recent.map((e) => e.ask)).toEqual(["turn 1", "turn 2", "fourth"]);
     deny = true;
-    const stopped = await goliath.run("fifth");
+    const stopped = await agent.run("fifth");
     expect(stopped.stopped?.phase).toBe("beforeFallback");
     expect(cloud).toBe(4);
     expect(calls).toBe(3);
@@ -496,7 +496,7 @@ describe("lifecycle extensions", () => {
     const completed: RunOutcome[] = [];
     let loads = 0;
     let later = 0;
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([]),
       memory: {
         load: async () => {
@@ -538,7 +538,7 @@ describe("lifecycle extensions", () => {
 
   test("memory transforms are validated and bounded, and skip is terminal", async () => {
     const memory = inMemory();
-    await createGoliath({
+    await createAgent({
       model: fakeModel([modelAnswer]),
       memory,
       extensions: [
@@ -556,7 +556,7 @@ describe("lifecycle extensions", () => {
     expect(estimateTokens((await memory.load()).summary)).toBeLessThanOrEqual(512);
     expect((await memory.load()).recent).toHaveLength(3);
     let later = false;
-    await createGoliath({
+    await createAgent({
       model: fakeModel([modelAnswer]),
       memory: inMemory(),
       extensions: [
@@ -576,7 +576,7 @@ describe("lifecycle extensions", () => {
     const model = fakeModel([modelAnswer]);
     let cloud = 0;
     await expect(
-      createGoliath({
+      createAgent({
         model,
         fallback: async () => {
           cloud++;
@@ -593,7 +593,7 @@ describe("lifecycle extensions", () => {
     const model = fakeModel([modelAnswer]);
     let cloud = 0;
     await expect(
-      createGoliath({
+      createAgent({
         model,
         fallback: async () => {
           cloud++;
@@ -618,7 +618,7 @@ describe("lifecycle extensions", () => {
       },
     };
     await expect(
-      createGoliath({
+      createAgent({
         model: fakeModel([planRead]),
         tools: { tool },
         extensions: [
@@ -644,7 +644,7 @@ describe("lifecycle extensions", () => {
     controller.abort();
     const phases: string[] = [];
     await expect(
-      createGoliath({
+      createAgent({
         model: fakeModel([]),
         extensions: [
           {
@@ -667,7 +667,7 @@ describe("lifecycle extensions", () => {
 
   test("cleanup failures preserve successful outcomes and report secondary diagnostics", async () => {
     const order: number[] = [];
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([modelAnswer]),
       extensions: [
         {
@@ -703,7 +703,7 @@ describe("lifecycle extensions", () => {
         return "private output";
       },
     };
-    const goliath = createGoliath({
+    const agent = createAgent({
       model: fakeModel([planRead]),
       tools: { tool },
       fallback: async () => {
@@ -726,7 +726,7 @@ describe("lifecycle extensions", () => {
         },
       ],
     });
-    await expect(goliath.run("read")).rejects.toMatchObject({
+    await expect(agent.run("read")).rejects.toMatchObject({
       name: "GoliathExtensionError",
       extension: "broken",
       phase: "afterTool",
@@ -752,7 +752,7 @@ describe("lifecycle extensions", () => {
           return "value";
         },
       };
-      const goliath = createGoliath({
+      const agent = createAgent({
         model: fakeModel(origin === "fallback" ? [] : [planRead, planAnswer, modelAnswer]),
         tools: { tool },
         maxSteps: origin === "fallback" ? 0 : 5,
@@ -789,7 +789,7 @@ describe("lifecycle extensions", () => {
         ],
       });
       if (origin === "memory" || origin === "formatter") {
-        const result = await goliath.run("read");
+        const result = await agent.run("read");
         expect(result.text).toBe("Seven.");
         expect(observed).toBeUndefined();
         expect(result.diagnostics).toHaveLength(1);
@@ -801,11 +801,11 @@ describe("lifecycle extensions", () => {
             output: { secret: "private", value: 7 },
           });
       } else {
-        await expect(goliath.run("read")).rejects.toBe(failure);
+        await expect(agent.run("read")).rejects.toBe(failure);
         expect(observed).toBe(origin);
       }
       expect(cloud).toBe(origin === "fallback" ? 1 : 0);
-      expect(goliath.sessionFallback).toBe(false);
+      expect(agent.sessionFallback).toBe(false);
     },
   );
 
@@ -826,7 +826,7 @@ describe("lifecycle extensions", () => {
     guarded.doGenerate = async () => {
       throw new Error("guardrailViolation");
     };
-    await createGoliath({
+    await createAgent({
       model: guarded,
       extensions: [extension],
       fallback: async () => {
@@ -836,7 +836,7 @@ describe("lifecycle extensions", () => {
     }).run("hi");
     expect(answers).toBe(0);
     expect(cloud).toBe(0);
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([modelAnswer]),
       maxSteps: 0,
       extensions: [extension],
@@ -848,7 +848,7 @@ describe("lifecycle extensions", () => {
 
   test("duplicate extension names fail at configuration time", () => {
     expect(() =>
-      createGoliath({ model: fakeModel([]), extensions: [{ name: "same" }, { name: "same" }] }),
+      createAgent({ model: fakeModel([]), extensions: [{ name: "same" }, { name: "same" }] }),
     ).toThrow("unique");
   });
 });
@@ -875,7 +875,7 @@ describe("extension edge paths", () => {
             ? [planAnswer, modelAnswer]
             : [planRead],
       );
-      const result = await createGoliath({
+      const result = await createAgent({
         model,
         tools: { tool },
         maxSteps: phase === "beforeFallback" ? 0 : 5,
@@ -908,7 +908,7 @@ describe("extension edge paths", () => {
   );
 
   test("readonly hook snapshots can be spread into replacement payloads", async () => {
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([]),
       maxSteps: 0,
       fallback: async (request) => ({ text: request.ask }),
@@ -926,7 +926,7 @@ describe("extension edge paths", () => {
 
   test("a valid replacement plan dispatches its chosen action", async () => {
     const model = fakeModel([planRead, modelAnswer]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { read },
       extensions: [
@@ -942,7 +942,7 @@ describe("extension edge paths", () => {
 
   test("prototype property names are not registered tools", async () => {
     await expect(
-      createGoliath({
+      createAgent({
         model: fakeModel([planAnswer]),
         tools: { read },
         extensions: [
@@ -966,7 +966,7 @@ describe("extension edge paths", () => {
         return "value";
       },
     };
-    await createGoliath({
+    await createAgent({
       model: fakeModel([planRead, planRead, planAnswer, modelAnswer]),
       tools: { tool },
       extensions: [
@@ -1001,12 +1001,12 @@ describe("extension edge paths", () => {
         seen.push(outcome);
       },
     };
-    await createGoliath({
+    await createAgent({
       model: fakeModel([pick, { json: { value: "", missing: "value" } }, planAnswer, modelAnswer]),
       tools: { tool },
       extensions: [extension],
     }).run("hi");
-    await createGoliath({
+    await createAgent({
       model: fakeModel([pick, { json: { value: "x" } }, planAnswer, modelAnswer]),
       tools: { tool },
       confirm: async () => false,
@@ -1026,7 +1026,7 @@ describe("extension edge paths", () => {
       let finalized = 0;
       let observed: string | undefined;
       await expect(
-        createGoliath({
+        createAgent({
           model,
           memory: {
             load: async () => {
@@ -1066,7 +1066,7 @@ describe("extension edge paths", () => {
     let cloud = 0;
     let observed: string | undefined;
     const model = fakeModel([modelAnswer]); // The scribe exhausts the script.
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       memory,
       fallback: async () => {
@@ -1104,7 +1104,7 @@ describe("extension edge paths", () => {
     let origin: string | undefined;
     let status: string | undefined;
     await expect(
-      createGoliath({
+      createAgent({
         model,
         extensions: [
           {
@@ -1124,7 +1124,7 @@ describe("extension edge paths", () => {
   });
 
   test("invalid configuration cannot disable the step or prompt limits accidentally", () => {
-    expect(() => createGoliath({ model: fakeModel([]), maxSteps: NaN })).toThrow("maxSteps");
-    expect(() => createGoliath({ model: fakeModel([]), window: Infinity })).toThrow("window");
+    expect(() => createAgent({ model: fakeModel([]), maxSteps: NaN })).toThrow("maxSteps");
+    expect(() => createAgent({ model: fakeModel([]), window: Infinity })).toThrow("window");
   });
 });

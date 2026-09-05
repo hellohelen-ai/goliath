@@ -5,22 +5,21 @@
 [![provenance](https://img.shields.io/badge/provenance-attested-brightgreen)](https://www.npmjs.com/package/@hellohelen-ai/goliath#provenance)
 [![license](https://img.shields.io/npm/l/@hellohelen-ai/goliath)](./LICENSE)
 
-**An agent harness for the phone's own model.**
+**An agent harness for on-device language models.**
 
-Apple ships a ~3B language model on every iPhone with Apple Intelligence. It is free, private, and
-fast. It also has a 4,096-token window and gets lost after a few tool calls. Goliath is the loop
-that makes it useful anyway: it plans one step at a time, runs each step in a fresh context, keeps
-tool output small, asks before it changes anything, and hands the turn to a cloud agent when the
-phone cannot finish.
-
-It only needs one stone.
+Goliath targets Apple Foundation Models: a language model of roughly three billion parameters that
+ships on every iPhone with Apple Intelligence. The model runs locally, at no cost, and no data
+leaves the device. It also has a 4,096-token context window and loses track of a task after a few
+tool calls. Goliath is designed around that constraint. It plans one step at a time, runs each step
+in a fresh context, keeps tool output small, confirms before it changes anything, and hands the
+turn to a cloud agent when the device cannot finish.
 
 ```sh
 npm i @hellohelen-ai/goliath
 ```
 
 ```ts
-import { createGoliath, defineTool } from "@hellohelen-ai/goliath";
+import { createAgent, defineTool } from "@hellohelen-ai/goliath";
 import { apple } from "@react-native-ai/apple";
 import { z } from "zod";
 
@@ -35,18 +34,18 @@ const createTask = defineTool({
   name: "createTask",
   description: "Add a task.",
   parameters: z.object({ title: z.string() }),
-  writes: true, // Goliath asks before running it
+  writes: true, // confirmed before it runs
   execute: ({ title }) => convex.mutation(api.tasks.create, { title }),
 });
 
-const goliath = createGoliath({
+const agent = createAgent({
   model: apple(),
   tools: { listTasks, createTask },
   confirm: async ({ tool, input }) => askTheUser(tool, input),
   fallback: async ({ ask, summary, steps }) => cloudAgent.turn({ ask, summary, steps }),
 });
 
-const result = await goliath.run("if I don't already have it, add call the dentist");
+const result = await agent.run("if I don't already have it, add call the dentist");
 result.text; // "Added Call the dentist. You now have three open tasks."
 result.handledBy; // "device" | "cloud"
 result.steps; // what it did, one line each
@@ -61,7 +60,7 @@ in a test it is the scripted model from `@hellohelen-ai/goliath/testing`.
 ```
 ask ──► recall ──► conductor ──► worker ──► judge ──► … ──► answer ──► remember
             │          │            │          │
-         memory    next stone   fresh ctx   stalled?
+         memory    next step    fresh ctx   stalled?
          brief     (JSON, 3     one tool    → fallback
                     fields)     ≤600 chars
 ```
@@ -74,7 +73,7 @@ ask ──► recall ──► conductor ──► worker ──► judge ──
 | **Answer**    | The ask, the brief, the step log                        | Two or three sentences                                                               |
 | **Scribe**    | The last three exchanges                                | A rolling brief of at most 60 words, updated only when an exchange falls off         |
 
-Nothing a worker saw survives the step. The conductor never sees raw JSON. That is the whole trick.
+Nothing a worker saw survives the step. The conductor never sees raw JSON. Those two rules keep the planner's context bounded regardless of tool output size.
 
 ## Why not just call the model in a loop
 
@@ -103,7 +102,7 @@ tool loop natively. Both fall over on a phone for the same reasons:
 | `confirm`      | approve all         | Asked before any `writes: true` tool runs                                  |
 | `window`       | `4096`              | Input + output window; a number or async capacity callback                 |
 | `countTokens`  | estimate            | Optional async native/provider text tokenizer                              |
-| `maxSteps`     | `5`                 | Five stones                                                                |
+| `maxSteps`     | `5`                 | Maximum steps per turn                                                     |
 | `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
 | `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
 | `extensions`   | `[]`                | Ordered, awaited lifecycle hooks for transformations and policy decisions  |
@@ -115,7 +114,7 @@ run. Each hook sees the previous hook's changes; return a patch to change behavi
 a tool, or `stop` to finish the run with your own text.
 
 ```ts
-import { createGoliath, type GoliathExtension } from "@hellohelen-ai/goliath";
+import { createAgent, type GoliathExtension } from "@hellohelen-ai/goliath";
 
 type AppContext = { canWrite: boolean; allowCloud: boolean };
 
@@ -137,8 +136,8 @@ const policy: GoliathExtension<AppContext> = {
   },
 };
 
-const goliath = createGoliath<AppContext>({ model, tools, extensions: [policy] });
-const result = await goliath.run("Update my calendar", {
+const agent = createAgent<AppContext>({ model, tools, extensions: [policy] });
+const result = await agent.run("Update my calendar", {
   context: { canWrite: false, allowCloud: false },
 });
 result.stopped; // { extension, phase, reason } when an extension stops the run
@@ -188,7 +187,7 @@ stops generation rather than silently switching to an estimate.
 For a provider with native accounting:
 
 ```ts
-const goliath = createGoliath({
+const agent = createAgent({
   model: () => apple(),
   window: () => nativeContext.contextSize(),
   countTokens: (text) => nativeContext.countTokens(text),
@@ -284,11 +283,11 @@ PASS  plan-week          cloud     301ms
 5/5 passed · 4 on device · 1 escalated
 ```
 
-That last line is the number this project exists for.
+The on-device share on the last line is the primary metric for this project.
 
 ## Status
 
-Early. The core loop, compression, memory, judge, and eval runner are here and tested against a
+Pre-1.0. The core loop, compression, memory, judge, and eval runner are here and tested against a
 scripted model. The example includes an Apple token-counting bridge; real-device quality and latency still need measurement. See `docs/` for the
 research behind the design.
 

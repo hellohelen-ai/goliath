@@ -1,5 +1,5 @@
-export { createGoliath, DEFAULT_MAX_STEPS, DEFAULT_WINDOW } from "./create-goliath.js";
-export type { Goliath, RunOptions } from "./create-goliath.js";
+export { createAgent, DEFAULT_MAX_STEPS, DEFAULT_WINDOW } from "./create-agent.js";
+export type { Agent, RunOptions } from "./create-agent.js";
 export { defineTool } from "./tools/define-tool.js";
 export { inMemory, emptyMemory } from "./memory/in-memory.js";
 export { keyValueMemory } from "./memory/key-value.js";

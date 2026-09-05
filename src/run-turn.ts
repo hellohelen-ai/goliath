@@ -178,7 +178,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       completed = await escalate("model-error", "session fallback");
     } else {
       try {
-        completed = await stones();
+        completed = await runSteps();
       } catch (error) {
         // Only provider calls in the active loop can request recovery. Scribe failures
         // occur after an answer; do not send the turn through a second execution route.
@@ -379,7 +379,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
     });
   }
 
-  async function stones(): Promise<RunResult> {
+  async function runSteps(): Promise<RunResult> {
     let planRetried = false;
     let retryHint: string | undefined;
     let attempt = 0;

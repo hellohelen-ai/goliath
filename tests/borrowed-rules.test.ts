@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool } from "../src/index.js";
+import { createAgent, defineTool } from "../src/index.js";
 import {
   conductorSystem,
   conductorUser,
@@ -22,8 +22,8 @@ const createTask = defineTool({
 describe("rules borrowed from other harnesses", () => {
   test("an empty answer gets one nudged retry before escalating (eve, OpenClaw, Hermes)", async () => {
     const model = fakeModel([{ text: "   " }, { text: "Here you go." }]);
-    const goliath = createGoliath({ model, fallback: async () => ({ text: "cloud" }) });
-    const result = await goliath.run("hi");
+    const agent = createAgent({ model, fallback: async () => ({ text: "cloud" }) });
+    const result = await agent.run("hi");
     expect(result.text).toBe("Here you go.");
     expect(result.handledBy).toBe("device");
     expect(model.calls).toHaveLength(2);
@@ -32,8 +32,8 @@ describe("rules borrowed from other harnesses", () => {
 
   test("two empty answers escalate", async () => {
     const model = fakeModel([{ text: "" }, { text: "" }]);
-    const goliath = createGoliath({ model, fallback: async () => ({ text: "cloud" }) });
-    const result = await goliath.run("hi");
+    const agent = createAgent({ model, fallback: async () => ({ text: "cloud" }) });
+    const result = await agent.run("hi");
     expect(result.handledBy).toBe("cloud");
     expect(result.trace.some((e) => e.type === "escalate" && e.reason === "empty-answer")).toBe(
       true,
@@ -47,12 +47,12 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Okay, not added." },
     ]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { createTask },
       confirm: async () => ({ approved: false, reason: "already have one" }),
     });
-    const result = await goliath.run("add nope");
+    const result = await agent.run("add nope");
     expect(result.steps[0]?.result).toBe(
       "declined by the user: already have one. Do not retry unless asked.",
     );
@@ -79,8 +79,8 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Thirty events." },
     ]);
-    const goliath = createGoliath({ model, tools: { events } });
-    const result = await goliath.run("what's on?");
+    const agent = createAgent({ model, tools: { events } });
+    const result = await agent.run("what's on?");
     expect(result.steps[0]?.result).toBe("30 events, first: Event 0");
   });
 
@@ -90,17 +90,17 @@ describe("rules borrowed from other harnesses", () => {
       throw new Error("modelNotReady: assets are downloading");
     };
     let fallbackCalls = 0;
-    const goliath = createGoliath({
+    const agent = createAgent({
       model: dead,
       fallback: async () => {
         fallbackCalls += 1;
         return { text: "cloud" };
       },
     });
-    for (let i = 0; i < 3; i += 1) await goliath.run("hi");
-    expect(goliath.sessionFallback).toBe(true);
+    for (let i = 0; i < 3; i += 1) await agent.run("hi");
+    expect(agent.sessionFallback).toBe(true);
     const calls = dead.calls.length;
-    const result = await goliath.run("hi again");
+    const result = await agent.run("hi again");
     expect(result.handledBy).toBe("cloud");
     expect(dead.calls.length).toBe(calls); // the device was not asked
     expect(fallbackCalls).toBe(4);
@@ -118,7 +118,7 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Nothing came back." },
     ]);
-    const result = await createGoliath({ model, tools: { quiet } }).run("run quiet");
+    const result = await createAgent({ model, tools: { quiet } }).run("run quiet");
     expect(result.steps[0]?.result).toBe("(no output)");
   });
 
@@ -142,7 +142,7 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "Done on the second try." },
     ]);
-    const result = await createGoliath({ model, tools: { flaky } }).run("do the thing");
+    const result = await createAgent({ model, tools: { flaky } }).run("do the thing");
     expect(result.handledBy).toBe("device");
     expect(result.steps[0]).toMatchObject({
       failed: true,
@@ -168,7 +168,7 @@ describe("rules borrowed from other harnesses", () => {
       { json: { q: "b" } },
     ]);
     let reason: string | undefined;
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { broken },
       fallback: async (r) => {
@@ -227,7 +227,7 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "reply" } },
       { text: "It is Thursday." },
     ]);
-    const goliath = createGoliath({
+    const agent = createAgent({
       model,
       tools: { createTask },
       facts: () => {
@@ -235,7 +235,7 @@ describe("rules borrowed from other harnesses", () => {
         return { today: "2026-09-03" };
       },
     });
-    await goliath.run("what day is it?");
+    await agent.run("what day is it?");
     expect(reads).toBe(1);
     expect(JSON.stringify(model.calls[0]?.prompt)).toContain("today: 2026-09-03");
   });
@@ -265,7 +265,7 @@ describe("rules borrowed from other harnesses", () => {
       { json: { kind: "answer", brief: "ask when" } },
       { text: "When should I remind you to call mom?" },
     ]);
-    const result = await createGoliath({ model, tools: { remind } }).run("remind me to call mom");
+    const result = await createAgent({ model, tools: { remind } }).run("remind me to call mom");
     expect(ran).toBe(false);
     expect(result.steps[0]).toMatchObject({
       skipped: true,
@@ -287,7 +287,7 @@ describe("rules borrowed from other harnesses", () => {
       throw new Error("guardrailViolation: content flagged");
     };
     let fallbackCalls = 0;
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       fallback: async () => {
         fallbackCalls += 1;
