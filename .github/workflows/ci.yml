@@ -38,6 +38,8 @@ jobs:
         working-directory: example
       - run: bun run typecheck
         working-directory: example
+      - run: bun run test
+        working-directory: example
       # Typechecking does not catch an invalid app config or a missing native
       # peer dependency; doctor does, and bundling proves every import resolves.
       - run: bun run doctor

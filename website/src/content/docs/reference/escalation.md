@@ -8,7 +8,7 @@ description: Every reason a turn leaves the device.
 | Reason               | When                                                                         |
 | -------------------- | ---------------------------------------------------------------------------- |
 | `no-model`           | No model was configured                                                      |
-| `model-unavailable`  | The device model is not available (no Apple Intelligence, Simulator)         |
+| `model-unavailable`  | Apple Intelligence is unavailable, disabled, or its models are not ready     |
 | `too-many-steps`     | The step cap was reached without an answer                                   |
 | `repeated-tool-call` | The same tool was called with the same input twice                           |
 | `empty-answer`       | The answer was empty after one nudged retry                                  |

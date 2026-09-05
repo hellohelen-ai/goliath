@@ -300,10 +300,10 @@ the example's bundle.
 
 ## Example
 
-[`example/`](./example) is a one-screen Expo app that runs a real turn on the phone's own model —
-three tools, a confirmation prompt before anything writes, and the step log on screen. It needs an
-iPhone with Apple Intelligence on iOS 26 and a development build; the Simulator has no on-device
-model.
+[`example/`](./example) is an Expo chat app that runs a real turn on the phone's own model —
+three tools, a confirmation prompt before anything writes, and suggestions backed by mock tools.
+It needs an iOS 26 development build and Apple Intelligence, either on an iPhone or through a
+compatible simulator on an Apple silicon Mac running macOS 26 or later.
 
 ## Contributing
 

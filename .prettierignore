@@ -12,3 +12,4 @@ example/ios/
 example/android/
 example/.expo/
 example/.expo-export/
+example/expo-env.d.ts
