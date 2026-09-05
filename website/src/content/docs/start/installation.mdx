@@ -1,0 +1,58 @@
+---
+title: Installation
+description: Install Goliath and its peer dependencies.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Goliath has two peer dependencies: `ai` (the AI SDK) and `zod`. It adds no other runtime
+dependency. On a phone, you also need a provider for the on-device model.
+
+<Tabs syncKey="pm">
+  <TabItem label="bun">
+
+```sh
+bun add @hellohelen-ai/goliath ai zod
+bun add @react-native-ai/apple   # on device
+```
+
+  </TabItem>
+  <TabItem label="npm">
+
+```sh
+npm i @hellohelen-ai/goliath ai zod
+npm i @react-native-ai/apple     # on device
+```
+
+  </TabItem>
+  <TabItem label="pnpm">
+
+```sh
+pnpm add @hellohelen-ai/goliath ai zod
+pnpm add @react-native-ai/apple  # on device
+```
+
+  </TabItem>
+</Tabs>
+
+## Versions
+
+| Package | Range    |
+| ------- | -------- |
+| `ai`    | `^7.0.0` |
+| `zod`   | `^4.0.0` |
+| Node    | `>=20`   |
+
+## On the device
+
+`@react-native-ai/apple` is a native module, so Expo Go cannot load it. You need a development
+build, and a phone with Apple Intelligence on iOS 26 or later. The Simulator has no on-device
+model. See the [example app](/goliath/project/example/) for a working Expo setup.
+
+## Provenance
+
+Every release is published from CI over OIDC and carries a provenance attestation. Verify it:
+
+```sh
+npm audit signatures
+```
