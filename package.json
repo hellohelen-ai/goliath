@@ -1,6 +1,6 @@
 {
   "name": "@hellohelen-ai/goliath",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.",
   "license": "MIT",
   "repository": {
