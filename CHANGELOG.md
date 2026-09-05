@@ -20,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Fixed
 
+- Generated tool arguments reuse the AI SDK's validated output so schema transformations run
+  once; no-argument calls and extension-provided replacements still receive validation.
 - Check repeated tool calls before execution so a duplicate write cannot execute twice. Failed
   and skipped reads are no longer reused as cached successes.
 - Application and extension errors no longer trigger model-error fallback; fallback failures

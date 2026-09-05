@@ -77,6 +77,10 @@ candidate cached reads. A missing-argument result skips execution and goes direc
 `afterTool`. Invalid generated arguments request normal escalation. Invalid rewritten arguments
 are extension errors and never reach confirmation or execution.
 
+Generated arguments use the AI SDK's validated output, so schema transformations run once.
+Returning `{ input }` supplies a fresh schema input to validate and transform; return `void` when
+preserving the current arguments. No-argument calls are validated locally without a model call.
+
 `afterTool.outcome` is a discriminated union:
 
 - `{ status: "executed", output }` exposes the successful raw output only during hooks.

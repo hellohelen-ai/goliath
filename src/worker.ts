@@ -48,7 +48,11 @@ const prepareToolCall = async (input: {
         return { ok: false, reason: "tool-args-invalid" };
       throw error;
     }
+    // Output.object already validated and transformed the generated arguments.
+    // Parsing that output again would apply non-idempotent transforms twice.
+    return { ok: true, input: args };
   }
+  // No model call means no SDK validation; validate the empty input here once.
   const parsed = await input.tool.parameters.safeParseAsync(args);
   return parsed.success
     ? { ok: true, input: parsed.data }
