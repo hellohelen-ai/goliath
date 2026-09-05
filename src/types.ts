@@ -1,5 +1,6 @@
 import type { LanguageModel, ModelMessage } from "ai";
 import type { z } from "zod";
+import type { ExtensionDiagnostic, GoliathExtension, HookPhase } from "./extensions.js";
 
 /** A factory lets stateful providers create a fresh model/session for each generation. */
 type ModelSource = LanguageModel | (() => LanguageModel);
@@ -33,7 +34,9 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
   requires?: string[];
 };
 
-type ToolContext = {
+type ToolContext<C = unknown> = {
+  /** Application context supplied to run; never injected into prompts automatically. */
+  context?: C;
   signal?: AbortSignal;
   /** Earlier steps in this turn. Full JSON-serializable outputs stay outside model prompts. */
   steps?: readonly StepRecord[];
@@ -109,6 +112,9 @@ type StepRecord = {
   skipped?: boolean;
   /** Served from an earlier identical step; nothing ran. */
   cached?: boolean;
+  /** Why execution was skipped, when applicable. */
+  skipReason?: "policy" | "confirmation" | "missing";
+  extension?: string;
   /** The tool threw. `result` carries the message the conductor plans around. */
   failed?: boolean;
   text?: string;
@@ -155,6 +161,9 @@ type RunResult = {
   bestEffort?: boolean;
   steps: StepRecord[];
   trace: TraceEvent[];
+  stopped?: { extension: string; phase: HookPhase; reason: string };
+  /** Observer/cleanup failures do not replace the original outcome. */
+  diagnostics?: ExtensionDiagnostic[];
 };
 
 type Compressor = (input: {
@@ -163,7 +172,9 @@ type Compressor = (input: {
   budget: number;
 }) => Promise<ModelMessage[]> | ModelMessage[];
 
-type GoliathConfig = {
+type GoliathConfig<C = unknown> = {
+  /** Awaited in array order. Hooks change behavior; onEvent observes it. */
+  extensions?: readonly GoliathExtension<C>[];
   /** Any AI SDK language model. On a phone, `apple()` from `@react-native-ai/apple`. */
   model: ModelSource;
   tools?: ToolMap;
@@ -177,7 +188,7 @@ type GoliathConfig = {
   countTokens?: TokenCounter;
   /** Most stones the conductor may throw in one turn. Default 5. */
   maxSteps?: number;
-  /** Extra compressors run after the built-in structural pass. */
+  /** @deprecated This option is unused. Use afterTool and beforePlan extensions instead. */
   compressors?: Compressor[];
   /** Who Goliath is, in one or two short sentences. Every prompt starts with it. */
   instructions?: string;

@@ -1,3 +1,4 @@
+import { modelCall } from "./errors.js";
 import { checkAbort, recentContext, resolveModel } from "./context.js";
 import type { ModelSource, TokenCounter } from "./types.js";
 import { NoObjectGeneratedError, Output, generateText } from "ai";
@@ -117,15 +118,17 @@ const plan = async (input: {
     ...(input.countTokens ? { countTokens: input.countTokens } : {}),
   });
   try {
-    const result = await generateText({
-      model: resolveModel(input.model),
-      output,
-      maxOutputTokens,
-      maxRetries: 0,
-      system,
-      prompt,
-      ...(input.signal ? { abortSignal: input.signal } : {}),
-    });
+    const result = await modelCall("plan", () =>
+      generateText({
+        model: resolveModel(input.model),
+        output,
+        maxOutputTokens,
+        maxRetries: 0,
+        system,
+        prompt,
+        ...(input.signal ? { abortSignal: input.signal } : {}),
+      }),
+    );
     const next = result.output;
     if (!next) return { ok: false, reason: "plan-invalid", hint: planInvalidHint(toolNames) };
     if (next.kind === "tool" && (!next.tool || !toolNames.includes(next.tool))) {

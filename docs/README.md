@@ -8,6 +8,10 @@ live in the [helen repo](https://github.com/hellohelen-ai/helen/tree/main/docs/r
 is the short version: the rules Goliath follows, where each comes from, and where it lives in
 the code.
 
+The [extension API](extensions.md) configures Goliath across a turn through typed lifecycle hooks.
+The [research and original proposal](research/lifecycle-extensions.md) compares Claude Code, Grok
+Bot, Mastra, Eve, Deep Agents, and Hermes and explains the design.
+
 | Brief                                                                                  | What it settles                                                                                                                                                                                                                                                 |
 | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`research/apple-foundation-models.md`](research/apple-foundation-models.md)           | The runtime: 4,096-token window shared by input and output (8,192 on newer iOS 27 devices), ~70 tokens per tool definition, 3 to 5 tools max, one request in flight, overflow kills the session, guardrail and refusal errors are not retryable                 |

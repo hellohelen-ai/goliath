@@ -114,6 +114,7 @@ describe("runTurn", () => {
       type: "escalate",
       reason: "repeated-tool-call",
     });
+    expect(result.trace).toContainEqual({ type: "answer", text: "The cloud finished it." });
     expect(received).toMatchObject({ reason: "repeated-tool-call", ask: "plan my week" });
     const steps = (received as { steps: { cached?: boolean; result?: string }[] }).steps;
     expect(steps).toHaveLength(2);

@@ -1,4 +1,5 @@
 import type { ModelMessage } from "ai";
+import { GoliathBudgetError, ModelCallError } from "./errors.js";
 import type { TokenCounter, TraceEvent } from "./types.js";
 
 const PROMPT_SHARE = 0.7;
@@ -35,12 +36,7 @@ const clipTokens = (text: string, budget: number): string => {
   return chars.slice(0, low).join("") + "…";
 };
 
-class ContextBudgetError extends Error {
-  constructor(label: string, tokens: number, limit: number) {
-    super(`${label} needs approximately ${tokens} input tokens; budget is ${limit}.`);
-    this.name = "ContextBudgetError";
-  }
-}
+class ContextBudgetError extends GoliathBudgetError {}
 
 /** Reserve output and provider framing before admitting any model request. */
 const budgetPrompt = async (input: {
@@ -61,11 +57,25 @@ const budgetPrompt = async (input: {
   );
   const count = async (prompt: string) => {
     const schema = input.responseFormat ? JSON.stringify(input.responseFormat) : "";
-    const tokens = input.countTokens
-      ? await input.countTokens([input.system, schema, prompt].filter(Boolean).join("\n\n"))
-      : estimateTokens(input.system) + estimateTokens(schema) + estimateTokens(prompt);
-    if (!Number.isSafeInteger(tokens) || tokens < 0)
-      throw new Error("countTokens must return a non-negative integer");
+    let tokens: number;
+    try {
+      tokens = input.countTokens
+        ? await input.countTokens([input.system, schema, prompt].filter(Boolean).join("\n\n"))
+        : estimateTokens(input.system) + estimateTokens(schema) + estimateTokens(prompt);
+      if (!Number.isSafeInteger(tokens) || tokens < 0)
+        throw new Error("countTokens must return a non-negative integer");
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === "AbortError") throw error;
+      const role =
+        input.label === "conductor"
+          ? "plan"
+          : input.label === "worker"
+            ? "arguments"
+            : input.label === "scribe"
+              ? "scribe"
+              : "answer";
+      throw new ModelCallError(role, error);
+    }
     return tokens + 8;
   };
   let prompt = input.prompt;

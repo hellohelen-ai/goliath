@@ -106,6 +106,56 @@ tool loop natively. Both fall over on a phone for the same reasons:
 | `maxSteps`     | `5`                 | Five stones                                                                |
 | `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
 | `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
+| `extensions`   | `[]`                | Ordered, awaited lifecycle hooks for transformations and policy decisions  |
+
+## Extend the lifecycle
+
+An extension groups optional hooks into a reusable object. Register them in the order they should
+run. Each hook sees the previous hook's changes; return a patch to change behavior, `deny` to skip
+a tool, or `stop` to finish the run with your own text.
+
+```ts
+import { createGoliath, type GoliathExtension } from "@hellohelen-ai/goliath";
+
+type AppContext = { canWrite: boolean; allowCloud: boolean };
+
+const policy: GoliathExtension<AppContext> = {
+  name: "app-policy",
+  beforeTool({ tool, context }) {
+    if (tool.writes && !context.canWrite) {
+      return { action: "deny", reason: "This account has read-only access." };
+    }
+  },
+  beforeFallback({ context }) {
+    if (!context.allowCloud) {
+      return {
+        action: "stop",
+        text: "I could not finish on this device. Cloud processing is disabled.",
+        reason: "cloud-disabled",
+      };
+    }
+  },
+};
+
+const goliath = createGoliath<AppContext>({ model, tools, extensions: [policy] });
+const result = await goliath.run("Update my calendar", {
+  context: { canWrite: false, allowCloud: false },
+});
+result.stopped; // { extension, phase, reason } when an extension stops the run
+```
+
+Hooks cover run start, recall, planning, tool calls, fallback, answers, memory, errors, and
+finalization. They receive a run ID, cancellation signal, application context, and a private
+`state` map for that extension and run. Application context never enters prompts or memory
+automatically. Input rewrites are validated before write confirmation; cached reads also pass
+through policy checks.
+
+Hook failures reject with `GoliathExtensionError` instead of triggering cloud fallback.
+`onFinish` runs on success, stop, error, and cancellation. Cleanup errors are isolated; successful
+results expose them in `result.diagnostics`. Keep `onEvent` for trace observation.
+
+See the [extension API and execution contract](https://hellohelen-ai.github.io/goliath/guides/extensions/)
+for every hook, return type, budget rule, and persistence detail.
 
 ## Keeping requests inside the context window
 
@@ -120,11 +170,13 @@ prompt is still too large, older tool results are shortened while keeping every 
 newest result. Custom `toModelOutput` strings also have the 600-character cap. Return only the
 fields the next step needs; use filtering and pagination inside tools for larger datasets.
 
-If the request still cannot fit, Goliath emits `escalate` with reason `context-budget` and calls
+Without lifecycle extensions, if the request still cannot fit, Goliath emits `escalate` with reason `context-budget` and calls
 your configured fallback with the original ask and step records. It does not truncate the current
 ask or instructions to squeeze an action through. Without a fallback, the result has empty text;
 use the trace reason to ask the user to narrow the request. A budget rejection does not count
 toward session fallback, because it says nothing about the device model's availability.
+With extensions configured, an oversized active-loop prompt instead rejects with `GoliathBudgetError`
+and runs `onError`/`onFinish`, preserving the extension API's failure contract.
 
 Use `onEvent` to inspect `{ type: "budget", label, tokens, limit, source }` for each attempted model
 call. `label` identifies `conductor`, `worker`, `answer`, or `scribe`. `source` is `tokenizer` when

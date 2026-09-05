@@ -29,3 +29,17 @@ export type {
   ToolMap,
   TraceEvent,
 } from "./types.js";
+export { GoliathExtensionError } from "./extensions.js";
+export { GoliathBudgetError } from "./errors.js";
+export type {
+  GoliathExtension,
+  HookContext,
+  HookPhase,
+  ToolInfo,
+  ToolOutcome,
+  RunOutcome,
+  ErrorOrigin,
+  ExtensionDiagnostic,
+  StopDecision,
+  ToolDecision,
+} from "./extensions.js";

@@ -1,3 +1,4 @@
+import { modelCall, ModelCallError, OperationError } from "./errors.js";
 import { resolveModel } from "./context.js";
 import type { ModelSource, TokenCounter } from "./types.js";
 import { generateText } from "ai";
@@ -47,6 +48,7 @@ const remember = async (input: {
       );
     } catch (error) {
       if ((error as { name?: string } | null)?.name === "AbortError") throw error;
+      if (error instanceof OperationError && !(error instanceof ModelCallError)) throw error;
       // Memory maintenance must never discard a completed answer or replay a turn.
       skipModel = true;
       input.emit?.({
@@ -83,14 +85,16 @@ const fold = async (input: {
     ...(input.emit ? { emit: input.emit } : {}),
     ...(input.countTokens ? { countTokens: input.countTokens } : {}),
   });
-  const result = await generateText({
-    model: resolveModel(input.model),
-    system: scribeSystem,
-    prompt,
-    maxOutputTokens,
-    maxRetries: 0,
-    ...(input.signal ? { abortSignal: input.signal } : {}),
-  });
+  const result = await modelCall("scribe", () =>
+    generateText({
+      model: resolveModel(input.model),
+      system: scribeSystem,
+      prompt,
+      maxOutputTokens,
+      maxRetries: 0,
+      ...(input.signal ? { abortSignal: input.signal } : {}),
+    }),
+  );
   const text = result.text.trim();
   return text || input.summary;
 };
