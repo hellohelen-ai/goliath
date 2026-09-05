@@ -115,7 +115,7 @@ const withMissing = (schema: z.ZodType): z.ZodType =>
       })
     : schema;
 
-/** The closing stone: turn the step log into two or three sentences. */
+/** The closing step: turn the step log into two or three sentences. */
 const runAnswerStep = async (input: {
   model: ModelSource;
   countTokens?: TokenCounter;

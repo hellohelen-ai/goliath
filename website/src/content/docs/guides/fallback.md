@@ -7,7 +7,7 @@ A fallback is a function from a `FallbackRequest` to `{ text }`. Goliath calls i
 stalls or the model fails, and marks the result `handledBy: "cloud"`.
 
 ```ts
-const goliath = createGoliath({
+const agent = createAgent({
   model: apple(),
   tools,
   fallback: async ({ ask, summary, recent, steps, reason }) => {
@@ -28,7 +28,7 @@ For the common case, post it as JSON and read `{ text }` back:
 ```ts
 import { httpFallback } from "@hellohelen-ai/goliath";
 
-createGoliath({
+createAgent({
   model: apple(),
   tools,
   fallback: httpFallback({
@@ -42,7 +42,7 @@ See [the reference](/goliath/reference/http-fallback/) for `readText` and `fetch
 
 ## Session fallback
 
-Three turns in a row that die on the device with a model error flip `goliath.sessionFallback` to
+Three turns in a row that die on the device with a model error flip `agent.sessionFallback` to
 `true`. From then on, turns go straight to the fallback without paying on-device latency. Claude
 Code does the same after three overloads.
 
@@ -63,7 +63,7 @@ See [Lifecycle extensions](/goliath/guides/extensions/).
 
 Without one, a stalled turn still returns a best-effort answer written from the step log, with
 `bestEffort: true` on the result. The [example app](/goliath/project/example/) deliberately has no
-fallback so you can see where the phone gives up.
+fallback so that escalation stays visible.
 
 ## What stays on device
 

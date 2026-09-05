@@ -25,8 +25,8 @@ on a small model.
 ## Five or fewer
 
 Each tool definition costs the conductor about 70 tokens on every step, and past about five
-definitions a 3B model picks wrong or invents arguments. If your app has more, build more than one
-Goliath, each with the tools one screen needs.
+definitions a 3B model picks wrong or invents arguments. If your app has more, create more than one
+agent, each with the tools one screen needs.
 
 ## Flat schemas
 

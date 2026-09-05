@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool, type GoliathExtension } from "../src/index.js";
+import { createAgent, defineTool, type GoliathExtension } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 
 const pickWrite = { json: { kind: "tool", tool: "write", brief: "write a value" } };
@@ -38,7 +38,7 @@ describe("tool argument validation", () => {
         },
       };
       const model = fakeModel([pickWrite, { json: { value: 1 } }, pickAnswer, answer]);
-      const result = await createGoliath({
+      const result = await createAgent({
         model,
         tools: { write },
         extensions: mode === "no extension" ? [] : [extension],
@@ -70,7 +70,7 @@ describe("tool argument validation", () => {
       execute: () => "done",
     });
     const model = fakeModel([pickWrite, pickAnswer, answer]);
-    const result = await createGoliath({ model, tools: { write } }).run("write");
+    const result = await createAgent({ model, tools: { write } }).run("write");
 
     expect(validations).toBe(1);
     expect(result.steps[0]?.input).toEqual({});
@@ -98,7 +98,7 @@ describe("tool argument validation", () => {
       const model = fakeModel(
         mode === "generated" ? [pickWrite, { json: { value: "invalid" } }] : [pickWrite],
       );
-      await createGoliath({
+      await createAgent({
         model,
         tools: { write },
         confirm: async () => {

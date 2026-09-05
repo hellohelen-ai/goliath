@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool, inMemory, type StepRecord } from "../src/index.js";
+import { createAgent, defineTool, inMemory, type StepRecord } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 import { recentContext } from "../src/context.js";
 import { estimateTokens } from "../src/budget.js";
@@ -14,9 +14,9 @@ describe("task context and execution boundaries", () => {
       { text: "Your address is 42 Birch Lane." },
       { text: "42 Birch Lane" },
     ]);
-    const goliath = createGoliath({ model });
-    await goliath.run("My address is 42 Birch Lane.");
-    await goliath.run("What address did I just give you?");
+    const agent = createAgent({ model });
+    await agent.run("My address is 42 Birch Lane.");
+    await agent.run("What address did I just give you?");
     expect(JSON.stringify(model.calls[1]?.prompt)).toContain("42 Birch Lane");
     expect(model.calls).toHaveLength(2);
   });
@@ -40,7 +40,7 @@ describe("task context and execution boundaries", () => {
       toolPlan("add"),
       { json: { title: "dentist" } },
     ]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { add },
       confirm: async () => {
@@ -76,7 +76,7 @@ describe("task context and execution boundaries", () => {
       toolPlan("add"),
       { json: { values: { b: "2", a: "1" } } },
     ]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { add },
       fallback: async () => ({ text: "stopped" }),
@@ -97,7 +97,7 @@ describe("task context and execution boundaries", () => {
         writes++;
       },
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([toolPlan("add"), toolPlan("add")]),
       tools: { add },
       confirm: async () => {
@@ -130,7 +130,7 @@ describe("task context and execution boundaries", () => {
       answerPlan,
       { text: "Found Alice" },
     ]);
-    const result = await createGoliath({ model, tools: { find } }).run("Find Alice");
+    const result = await createAgent({ model, tools: { find } }).run("Find Alice");
     expect(reads).toBe(1);
     expect(result.steps[1]).toMatchObject({ cached: true, output: { id: "42" } });
   });
@@ -170,7 +170,7 @@ describe("task context and execution boundaries", () => {
       answerPlan,
       { text: "Sent" },
     ]);
-    const result = await createGoliath({
+    const result = await createAgent({
       model,
       tools: { lookup, send },
       memory,
@@ -200,7 +200,7 @@ describe("task context and execution boundaries", () => {
         writes++;
       },
     });
-    await createGoliath({
+    await createAgent({
       model: fakeModel([toolPlan("add"), { json: { title: "valid" } }]),
       tools: { add },
       confirm: async () => {
@@ -225,7 +225,7 @@ describe("task context and execution boundaries", () => {
         writes++;
       },
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([toolPlan("send")]),
       tools: { send },
       fallback: async () => ({ text: "stopped" }),
@@ -248,7 +248,7 @@ describe("task context and execution boundaries", () => {
         writes++;
       },
     });
-    const goliath = createGoliath({
+    const agent = createAgent({
       model: fakeModel([toolPlan("add")]),
       tools: { add },
       confirm: async () => {
@@ -256,7 +256,7 @@ describe("task context and execution boundaries", () => {
         return true;
       },
     });
-    await expect(goliath.run("Add", { signal: controller.signal })).rejects.toMatchObject({
+    await expect(agent.run("Add", { signal: controller.signal })).rejects.toMatchObject({
       name: "AbortError",
     });
     expect(writes).toBe(0);
@@ -273,7 +273,7 @@ describe("task context and execution boundaries", () => {
         throw new Error("format failed");
       },
     });
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([toolPlan("add"), answerPlan, { text: "Added" }]),
       tools: { add },
     }).run("Add");
@@ -286,7 +286,7 @@ describe("task context and execution boundaries", () => {
 
   test("a failed memory save preserves the answer without invoking fallback", async () => {
     let fallbacks = 0;
-    const result = await createGoliath({
+    const result = await createAgent({
       model: fakeModel([{ text: "Done" }]),
       memory: {
         load: async () => ({ summary: "", recent: [] }),
@@ -312,7 +312,7 @@ describe("task context and execution boundaries", () => {
       parameters: z.object({}),
       execute: () => "found",
     });
-    const goliath = createGoliath({
+    const agent = createAgent({
       model: fakeModel([{ json: { kind: "escalate", brief: "beyond tools" } }]),
       tools: { lookup },
       fallback: async () => {
@@ -320,16 +320,16 @@ describe("task context and execution boundaries", () => {
         throw new Error("offline");
       },
     });
-    await expect(goliath.run("Help")).rejects.toThrow("offline");
+    await expect(agent.run("Help")).rejects.toThrow("offline");
     expect(calls).toBe(1);
   });
 
   test("overlapping runs are serialized and see the preceding memory", async () => {
     const model = fakeModel([{ text: "My name is Alice" }, { text: "Hello Alice" }]);
-    const goliath = createGoliath({ model });
+    const agent = createAgent({ model });
     const results = await Promise.all([
-      goliath.run("My name is Alice"),
-      goliath.run("What is my name?"),
+      agent.run("My name is Alice"),
+      agent.run("What is my name?"),
     ]);
     expect(results[1]?.text).toBe("Hello Alice");
     expect(JSON.stringify(model.calls[1]?.prompt)).toContain("My name is Alice");
@@ -380,7 +380,7 @@ test("a write invalidates an earlier cached read", async () => {
     answerPlan,
     { text: "Updated" },
   ]);
-  const result = await createGoliath({ model, tools: { read, write } }).run(
+  const result = await createAgent({ model, tools: { read, write } }).run(
     "Read, update, and check",
   );
   expect(reads).toBe(2);
@@ -406,7 +406,7 @@ test("two references resolving to the same write are detected as duplicates", as
     toolPlan("write"),
     { json: { id: "second-alias" } },
   ]);
-  await createGoliath({ model, tools: { write }, fallback: async () => ({ text: "stopped" }) }).run(
+  await createAgent({ model, tools: { write }, fallback: async () => ({ text: "stopped" }) }).run(
     "Write",
   );
   expect(writes).toBe(1);
@@ -437,7 +437,7 @@ test("eviction gives the scribe recorded actions without their full outputs", as
     ],
   });
   const model = fakeModel([{ text: "Hi" }, { text: "Sent to 42" }]);
-  await createGoliath({ model, memory }).run("Hello");
+  await createAgent({ model, memory }).run("Hello");
   const prompt = JSON.stringify(model.calls[1]?.prompt);
   expect(prompt).toContain("[completed]");
   expect(prompt).toContain("sent");

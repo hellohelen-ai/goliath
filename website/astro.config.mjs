@@ -12,8 +12,8 @@ export default defineConfig({
     starlight({
       title: "Goliath",
       description:
-        "An agent harness for the phone's own model. Apple Foundation Models, a 4k window, one stone.",
-      logo: { src: "./src/assets/stone.svg", alt: "" },
+        "An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.",
+      logo: { src: "./src/assets/logo.svg", alt: "" },
       favicon: "/favicon.svg",
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/hellohelen-ai/goliath" },
@@ -57,7 +57,7 @@ export default defineConfig({
         {
           label: "Reference",
           items: [
-            { label: "createGoliath", slug: "reference/create-goliath" },
+            { label: "createAgent", slug: "reference/create-agent" },
             { label: "defineTool", slug: "reference/define-tool" },
             { label: "Memory adapters", slug: "reference/memory" },
             { label: "httpFallback", slug: "reference/http-fallback" },

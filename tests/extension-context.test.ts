@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { z } from "zod";
-import { createGoliath, defineTool, GoliathBudgetError, inMemory } from "../src/index.js";
+import { createAgent, defineTool, GoliathBudgetError, inMemory } from "../src/index.js";
 import { fakeModel } from "../src/testing/index.js";
 
 test("native budgeting counts extension context and finalizes a rejected request", async () => {
@@ -15,7 +15,7 @@ test("native budgeting counts extension context and finalizes a rejected request
     execute: () => "value",
   });
   await expect(
-    createGoliath({
+    createAgent({
       model,
       tools: { read },
       countTokens: (text) => {
@@ -66,7 +66,7 @@ test("extension memory and fallback patches preserve exact outputs outside devic
     { json: { kind: "escalate", brief: "cloud" } },
   ]);
   let persisted = 0;
-  const goliath = createGoliath({
+  const agent = createAgent({
     model,
     tools: { read },
     memory,
@@ -88,10 +88,10 @@ test("extension memory and fallback patches preserve exact outputs outside devic
       },
     ],
   });
-  const first = await goliath.run("look up A");
+  const first = await agent.run("look up A");
   expect(first.steps[0]?.result?.length).toBeLessThanOrEqual(600);
   expect(first.steps[0]?.output).toEqual(raw);
-  expect((await goliath.run("send it to cloud")).text).toBe("Cloud answer");
+  expect((await agent.run("send it to cloud")).text).toBe("Cloud answer");
   expect(persisted).toBe(2);
   expect((await memory.load()).recent[0]?.steps?.[0]?.output).toEqual(raw);
   expect(JSON.stringify(model.calls)).not.toContain(raw.id);
@@ -134,7 +134,7 @@ test("extension rewrites resolve to canonical IDs before duplicate writes are ch
     { json: { ref: "second alias" } },
     { text: "Done" },
   ]);
-  const result = await createGoliath({
+  const result = await createAgent({
     model,
     tools: { read, write },
     confirm: async ({ input }) => {

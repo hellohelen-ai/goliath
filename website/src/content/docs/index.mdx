@@ -1,9 +1,9 @@
 ---
 title: Goliath
-description: An agent harness for the phone's own model. Apple Foundation Models, a 4k window, one stone.
+description: An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.
 template: splash
 hero:
-  tagline: An agent harness for the phone's own model. Plans one step at a time, keeps every context small, asks before it writes, and hands off to the cloud only when the phone cannot finish.
+  tagline: An agent harness for on-device language models. It plans one step at a time, keeps every context small, confirms before it writes, and hands off to the cloud only when the device cannot finish.
   actions:
     - text: Get started
       link: /goliath/start/introduction/
@@ -30,7 +30,7 @@ npm i @hellohelen-ai/goliath
   <Card title="Writes ask first" icon="approve-check">
     Mark a tool `writes: true` and Goliath calls your `confirm` before it runs.
   </Card>
-  <Card title="Escalates on signals, not vibes" icon="rocket">
+  <Card title="Escalates on structural signals" icon="rocket">
     A repeated call, an empty answer, or the step cap sends the turn to your cloud fallback.
   </Card>
 </CardGrid>

@@ -19,4 +19,4 @@ description: Every reason a turn leaves the device.
 | `guardrail`          | Apple's guardrail rejected the text. Ends on device; never sent to the cloud |
 | `model-error`        | Refusal, overflow, or another provider error. Never retried                  |
 
-Three `model-error` turns in a row set [`sessionFallback`](/goliath/reference/create-goliath/#sessionfallback).
+Three `model-error` turns in a row set [`sessionFallback`](/goliath/reference/create-agent/#sessionfallback).

@@ -3,10 +3,10 @@ title: Tracing
 description: Watch every stage of a turn as it happens.
 ---
 
-Pass `onEvent` to `createGoliath` for every turn, or to `run` for one. Both are called.
+Pass `onEvent` to `createAgent` for every turn, or to `run` for one. Both are called.
 
 ```ts
-const result = await goliath.run(ask, {
+const result = await agent.run(ask, {
   onEvent: (event) => {
     if (event.type === "plan")
       log(`${event.index}: ${event.kind} ${event.tool ?? ""} — ${event.brief}`);

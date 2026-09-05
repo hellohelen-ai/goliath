@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 import {
-  createGoliath,
+  createAgent,
   defineTool,
   type Fallback,
   type GoliathTool,
@@ -20,7 +20,7 @@ type EvalOutcome = {
   text: string;
   reasons: string[];
   ms: number;
-  /** Stones thrown. An efficiency signal, logged but never a failure. */
+  /** Steps taken. An efficiency signal, logged but never a failure. */
   steps: number;
 };
 
@@ -107,13 +107,13 @@ const runEvals = async (input: {
     let last: { result: RunResult; tools: string[]; reasons: string[]; ms: number } | undefined;
     for (let i = 0; i < runs; i += 1) {
       const model = typeof input.model === "function" ? input.model(fixture) : input.model;
-      const goliath = createGoliath({
+      const agent = createAgent({
         model,
         tools: sampleTools(),
         fallback: input.fallback ?? (async () => ({ text: "(cloud)" })),
       });
       const started = Date.now();
-      const result = await goliath.run(fixture.ask);
+      const result = await agent.run(fixture.ask);
       const tools = result.steps.filter((s) => s.kind === "tool").map((s) => s.tool ?? "");
       const reasons = judge(fixture, result, tools);
       if (reasons.length === 0) passes += 1;

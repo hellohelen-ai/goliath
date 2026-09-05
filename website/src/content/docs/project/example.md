@@ -32,7 +32,7 @@ After the first build, `bun run start` is enough.
 
 - `src/tasks.ts`: three tools. `createTask` and `completeTask` are `writes: true`, which is why
   they prompt. The parameters are flat, which is what a 3B model fills in reliably.
-- `app/index.tsx`: `createGoliath` wired to `apple()`, with `confirm` bound to an `Alert`.
+- `app/index.tsx`: `createAgent` wired to `apple()`, with `confirm` bound to an `Alert`.
 
 There is deliberately **no** `fallback`. The example is about what the phone finishes on its own;
 a cloud fallback would hide the moments when it cannot.

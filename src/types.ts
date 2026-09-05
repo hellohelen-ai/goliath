@@ -96,7 +96,7 @@ type EscalationReason =
   | "tool-prerequisite-missing"
   | "model-error";
 
-/** One stone thrown: what the conductor decided and what the worker did. */
+/** One step: what the conductor decided and what the worker did. */
 type StepRecord = {
   index: number;
   kind: "tool" | "answer";
@@ -186,7 +186,7 @@ type GoliathConfig<C = unknown> = {
   window?: number | (() => number | Promise<number>);
   /** Optional native/provider tokenizer. A failing counter stops generation rather than guessing. */
   countTokens?: TokenCounter;
-  /** Most stones the conductor may throw in one turn. Default 5. */
+  /** Maximum number of steps the conductor may plan in one turn. Default 5. */
   maxSteps?: number;
   /** @deprecated This option is unused. Use afterTool and beforePlan extensions instead. */
   compressors?: Compressor[];

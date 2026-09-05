@@ -1,6 +1,6 @@
 name: release-preflight
 
-# Software Mansion's habit: pack first, publish later. This builds the exact tarball a
+# Pack first, publish later. This builds the exact tarball a
 # release would push and uploads it as an artifact, so you can install those bytes into a
 # real project before you tag anything. It has no id-token permission and never publishes.
 on:
@@ -48,7 +48,7 @@ jobs:
           node --input-type=module -e "
             const m = await import('@hellohelen-ai/goliath');
             const t = await import('@hellohelen-ai/goliath/testing');
-            for (const n of ['createGoliath','defineTool','inMemory']) {
+            for (const n of ['createAgent','defineTool','inMemory']) {
               if (typeof m[n] !== 'function') throw new Error('missing export: ' + n);
             }
             if (typeof t.fakeModel !== 'function') throw new Error('missing export: fakeModel');

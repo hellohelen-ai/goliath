@@ -10,7 +10,7 @@ type RunOptions<C = unknown> = {
   signal?: AbortSignal;
   onEvent?: (event: TraceEvent) => void;
 } & (unknown extends C ? { context?: C } : { context: C });
-type Goliath<C = unknown> = {
+type Agent<C = unknown> = {
   run: (
     ask: string,
     ...options: unknown extends C ? [options?: RunOptions<C>] : [options: RunOptions<C>]
@@ -19,7 +19,7 @@ type Goliath<C = unknown> = {
 };
 
 /** Build a reusable harness. Extension state is allocated separately for every run. */
-const createGoliath = <C = unknown>(config: GoliathConfig<C>): Goliath<C> => {
+const createAgent = <C = unknown>(config: GoliathConfig<C>): Agent<C> => {
   if (typeof config.window === "number") validateWindow(config.window);
   let lastWindow = typeof config.window === "number" ? config.window : DEFAULT_WINDOW;
   let pending: Promise<unknown> = Promise.resolve();
@@ -89,7 +89,7 @@ const createGoliath = <C = unknown>(config: GoliathConfig<C>): Goliath<C> => {
       const result = pending.then(() => run(ask, options));
       pending = result.catch(() => undefined);
       return result;
-    }) as Goliath<C>["run"],
+    }) as Agent<C>["run"],
     get sessionFallback() {
       return consecutiveModelErrors >= SESSION_FALLBACK_AFTER;
     },
@@ -99,5 +99,5 @@ const validateWindow = (window: number): void => {
   if (!Number.isSafeInteger(window) || window <= 0)
     throw new Error("window must be a positive integer token count");
 };
-export { createGoliath, DEFAULT_MAX_STEPS, DEFAULT_WINDOW, SESSION_FALLBACK_AFTER };
-export type { Goliath, RunOptions };
+export { createAgent, DEFAULT_MAX_STEPS, DEFAULT_WINDOW, SESSION_FALLBACK_AFTER };
+export type { Agent, RunOptions };

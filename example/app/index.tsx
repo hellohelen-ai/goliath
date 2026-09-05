@@ -1,4 +1,4 @@
-import { createGoliath, type RunResult, type StepRecord } from "@hellohelen-ai/goliath";
+import { createAgent, type RunResult, type StepRecord } from "@hellohelen-ai/goliath";
 import { apple } from "@react-native-ai/apple";
 import { useMemo, useState } from "react";
 import {
@@ -21,8 +21,8 @@ import { completeTask, createTask, listTasks } from "@/tasks";
 const askTheUser = (tool: string, input: unknown) =>
   new Promise<boolean>((resolve) => {
     Alert.alert(tool, JSON.stringify(input, null, 2), [
-      { text: "Not now", style: "cancel", onPress: () => resolve(false) },
-      { text: "Do it", onPress: () => resolve(true) },
+      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: "Allow", onPress: () => resolve(true) },
     ]);
   });
 
@@ -34,9 +34,9 @@ export default function Home() {
 
   const available = apple.isAvailable();
 
-  const goliath = useMemo(
+  const agent = useMemo(
     () =>
-      createGoliath({
+      createAgent({
         model: () => apple(),
         ...appleContextOptions(),
         tools: { listTasks, createTask, completeTask },
@@ -52,7 +52,7 @@ export default function Home() {
     setError(null);
     setResult(null);
     try {
-      setResult(await goliath.run(ask));
+      setResult(await agent.run(ask));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -65,8 +65,8 @@ export default function Home() {
       <SafeAreaView style={styles.screen}>
         <Text style={styles.heading}>No on-device model</Text>
         <Text style={styles.body}>
-          Apple Intelligence is not available here. Goliath needs iOS 26 on a device that has it
-          switched on — the simulator will not do.
+          Apple Intelligence is not available on this device. Goliath requires iOS 26 or later with
+          Apple Intelligence enabled. The Simulator has no on-device model.
         </Text>
       </SafeAreaView>
     );

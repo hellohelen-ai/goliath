@@ -3,19 +3,18 @@ title: Introduction
 description: What Goliath is, what it is for, and what it is not.
 ---
 
-Apple ships a language model of roughly three billion parameters on every iPhone with Apple
-Intelligence. It is free, private, and fast. It also has a 4,096-token window and gets lost after a
-few tool calls.
+Goliath is an agent harness for small on-device language models. Its primary target is Apple
+Foundation Models: a language model of roughly three billion parameters that ships on every iPhone
+with Apple Intelligence. The model runs locally, at no cost, and no data leaves the device. It also
+has a 4,096-token context window and loses track of a task after a few tool calls.
 
-Goliath is the loop that makes it useful anyway. It:
+Goliath is designed around that constraint. It:
 
 - plans **one step at a time**, as a small JSON object;
 - runs each step in a **fresh context** with **one tool**;
 - keeps every tool result **under 600 characters**;
-- **asks before it changes anything**;
-- **hands the turn to a cloud agent** when the phone cannot finish.
-
-It only needs one stone.
+- **confirms before it changes anything**;
+- **hands the turn to a cloud agent** when the device cannot finish.
 
 ## Who it is for
 

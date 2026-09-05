@@ -6,7 +6,7 @@ description: Ask the user before a tool changes anything.
 Mark a tool `writes: true` and Goliath calls your `confirm` before it runs.
 
 ```ts
-const goliath = createGoliath({
+const agent = createAgent({
   model: apple(),
   tools: { listTasks, createTask },
   confirm: async ({ tool, input, brief }) => {
@@ -39,4 +39,4 @@ while the user is deciding, so a slow user does not time out Apple's session.
 
 ## Default
 
-With no `confirm`, every write is approved. That is fine in tests and wrong in an app.
+With no `confirm`, every write is approved. That is acceptable in tests and unsafe in an app.

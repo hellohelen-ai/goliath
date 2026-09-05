@@ -35,7 +35,7 @@ bun run ios --device
   is why they prompt before running. Note the parameters are flat: primitives only, which is what a
   3B model fills in reliably.
 - `modules/goliath-context/` — a local Expo module exposing native capacity and token counting. Counting is enabled on iOS 26.4+; older releases use the harness estimate. Native tokenization counts prompt text and the serialized schema; the harness still reserves space for provider formatting.
-- `app/index.tsx` — `createGoliath` wired to `apple()`, with `confirm` bound to an `Alert`.
+- `app/index.tsx` — `createAgent` wired to `apple()`, with `confirm` bound to an `Alert`.
 
 There is deliberately **no** `fallback` configured. This example is about what the phone finishes
 on its own; adding a cloud fallback would hide the moments when it cannot.

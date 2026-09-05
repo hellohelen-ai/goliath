@@ -9,7 +9,7 @@ import { conductorSystem, conductorUser } from "./prompts.js";
 import type { Exchange, PlanExample, StepRecord, ToolMap, TraceEvent } from "./types.js";
 
 /**
- * The next stone. Flat on purpose: three fields is what a 3B model fills in
+ * The next step. Flat on purpose: three fields is what a 3B model fills in
  * reliably under constrained decoding.
  */
 /**
