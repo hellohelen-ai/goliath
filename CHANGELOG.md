@@ -8,6 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- A dark conversation UI for the example, with an inbox, search, suggested requests, inline
+  task confirmations, and per-conversation agent memory.
+- Console lifecycle logging in the example app, with Fast Refresh for the local harness source
+  and development client support for iOS simulators and devices.
+- Example UI split into hooks and focused screen components, with mock-tool suggestions and
+  the shared docs stone logo.
+- Zustand state for example conversations, drafts, navigation, and search, with coverage for
+  background replies, concurrent sends, and conversation filtering.
+
 ## [0.1.0] - 2026-09-05
 
 This release contains a breaking rename; see **Changed**.
