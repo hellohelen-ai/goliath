@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla";
+import { presentResult } from "../agents/goliath/present-result";
 import type { RunResult } from "@hellohelen-ai/goliath";
 import type { ChatMessage, Conversation } from "../types/conversation";
 
@@ -90,7 +91,7 @@ export function createAppStore() {
         ...message,
         result,
         status: "completed",
-        text: result.text || "I couldn’t finish this request. Try asking for one smaller step.",
+        text: presentResult(result).text,
       })),
     failTurn: (address, error) =>
       get().updateMessage(address, (message) => ({

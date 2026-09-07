@@ -29,13 +29,16 @@ const recentContext = (recent: readonly Exchange[], budget: number): string => {
   let remaining = budget - estimateTokens(heading);
   for (const exchange of [...recent].reverse()) {
     const actions = stepLog((exchange.steps ?? []).filter((step) => step.kind === "tool"));
-    const text = `User: ${exchange.ask}\nAssistant: ${exchange.answer}${actions ? `\nActions:\n${actions}` : ""}`;
+    const answer = exchange.bestEffort
+      ? `[Partial reply; the request was not fully completed] ${exchange.answer}`
+      : exchange.answer;
+    const text = `User: ${exchange.ask}\nAssistant: ${answer}${actions ? `\nActions:\n${actions}` : ""}`;
     if (estimateTokens(text) > remaining) {
       if (!kept.length) {
         // Give both speakers room rather than letting a long ask hide the entire answer.
         const share = Math.max(0, Math.floor((remaining - 16) / (actions ? 3 : 2)));
         kept.push(
-          `User: ${clipTokens(exchange.ask, share)}\nAssistant: ${clipTokens(exchange.answer, share)}${actions ? `\nActions:\n${clipTokens(actions, share)}` : ""}`,
+          `User: ${clipTokens(exchange.ask, share)}\nAssistant: ${clipTokens(answer, share)}${actions ? `\nActions:\n${clipTokens(actions, share)}` : ""}`,
         );
       }
       break;

@@ -8,7 +8,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Fixed
+
+- Classify native unsafe-content refusals, including wrapped errors, as guardrails without
+  retrying or sending them to fallback; recognize native Generable decode failures in the
+  existing bounded structured-output validation paths.
+- Retain nonempty best-effort replies and tool evidence in conversation memory, marked partial
+  in subsequent prompts and memory compaction.
+- Show cause-specific unfinished outcomes in the example, including refusal, repeated-step,
+  model, and validation failures; avoid success icons and misleading smaller-request advice.
+
 ### Added
+
+- Standalone interactive `docs/harness-walkthrough.html` explaining the base harness, model/code
+  boundaries, lifecycle hooks, token budgets, storage, and screenshot failure paths.
+- Scripted provider errors via `fakeModel([{ error: new Error(...) }])` for recovery regression tests.
 
 - Optional `@hellohelen-ai/goliath/filesystem` module with in-memory, static, SQLite, and composite
   backends; scoped backend factories; bounded glob/grep/read tools; and revision-checked writes.
@@ -26,6 +40,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Changed
 
+- Example task completion selects an ID from `listTasks` instead of matching titles; reject
+  unlisted IDs before approval and expose IDs alongside titles in model-facing lookup results.
 - The example exports one shared agent from `agent.ts`; Goliath manages conversation sessions
   while Zustand holds UI state and the runtime adapter handles approval buttons and cancellation.
 

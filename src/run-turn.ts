@@ -1,3 +1,4 @@
+import { isGuardrail } from "./model-errors.js";
 import { contentBudgets, fitResult, retrievedSteps } from "./tool-output.js";
 import { snapshot } from "./context.js";
 import { clipTokens, ContextBudgetError } from "./budget.js";
@@ -92,12 +93,14 @@ const exchangeSchema = z
     ask: z.string(),
     answer: z.string(),
     at: z.number().finite(),
+    bestEffort: z.boolean().optional(),
     steps: z.array(stepSchema).optional(),
   })
   .transform((exchange): Exchange => ({
     ask: exchange.ask,
     answer: exchange.answer,
     at: exchange.at,
+    ...(exchange.bestEffort !== undefined ? { bestEffort: exchange.bestEffort } : {}),
     ...(exchange.steps ? { steps: exchange.steps } : {}),
   }));
 const memorySchema = z.object({ summary: z.string(), recent: z.array(exchangeSchema) });
@@ -278,7 +281,13 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       steps.push({ index: steps.length, kind: "answer", brief: options.brief, text });
     if (text) emit({ type: "answer", text });
     if (options.persist) {
-      const exchange = { ask, answer: text, at: Date.now(), steps: snapshot(steps) ?? [] };
+      const exchange = {
+        ask,
+        answer: text,
+        at: Date.now(),
+        steps: snapshot(steps) ?? [],
+        ...(options.bestEffort ? { bestEffort: true } : {}),
+      };
       checkAbort(input.signal);
       // A dead device is never asked to summarize the cloud's answer. Retain the
       // existing summary and the last three exchanges; older exchanges are dropped.
@@ -359,7 +368,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         if (failure instanceof ModelCallError && isGuardrail(failure.cause))
           emit({ type: "escalate", reason: "guardrail", error: describeError(failure.cause) });
       }
-      return finishAnswer(text, { bestEffort: true, persist: false, output });
+      return finishAnswer(text, { bestEffort: true, persist: !!text.trim(), output });
     }
     let request = {
       ask,
@@ -688,7 +697,5 @@ const EMPTY_ANSWER_NUDGE =
   "Your previous reply was empty. Answer now from what you found above; do not mention this notice.";
 const describeError = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-const isGuardrail = (error: unknown): boolean =>
-  /guardrail|content.?filter|safety/i.test(describeError(error));
 export { runTurn };
 export type { TurnInput };

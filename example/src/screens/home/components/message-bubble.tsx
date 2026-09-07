@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import type { ChatMessage } from "@/types/conversation";
 import { colors, Icon } from "@/ui/primitives";
 import { styles } from "../home.styles";
+import { presentResult } from "@/agents/goliath/present-result";
 import { ConfirmationCard } from "./confirmation-card";
 
 export function MessageBubble({
@@ -13,6 +14,7 @@ export function MessageBubble({
   onConfirm: (approved: boolean) => void;
   onRetry?: () => void;
 }) {
+  const outcome = message.result ? presentResult(message.result) : undefined;
   return (
     <View style={styles.messageGroup}>
       {message.confirmation && (
@@ -29,9 +31,7 @@ export function MessageBubble({
         </View>
       ) : (
         <View style={message.role === "user" ? styles.userBubble : styles.assistantBubble}>
-          {message.result?.bestEffort && (
-            <Text style={styles.caution}>Couldn’t complete every step</Text>
-          )}
+          {outcome?.notice && <Text style={styles.caution}>{outcome.notice}</Text>}
           {message.result?.trace.some((event) => event.type === "memory-error") && (
             <Text style={styles.caution}>The agent couldn’t save its memory for this reply.</Text>
           )}
@@ -40,7 +40,7 @@ export function MessageBubble({
             <Text style={styles.caution}>Request interrupted</Text>
           )}
           <Text selectable style={styles.messageText}>
-            {message.text}
+            {outcome?.text ?? message.text}
           </Text>
           {onRetry && (
             <Pressable accessibilityRole="button" onPress={onRetry} style={styles.cancelButton}>
@@ -51,11 +51,12 @@ export function MessageBubble({
       )}
       {message.result && (
         <View style={styles.resultFootnote}>
-          <Icon name="checkmark-circle-outline" color={colors.quiet} size={14} />
-          <Text style={styles.footnote}>
-            {message.result.handledBy === "device" ? "On-device" : "Cloud"} ·{" "}
-            {message.result.steps.length} {message.result.steps.length === 1 ? "step" : "steps"}
-          </Text>
+          <Icon
+            name={outcome?.incomplete ? "alert-circle-outline" : "checkmark-circle-outline"}
+            color={colors.quiet}
+            size={14}
+          />
+          <Text style={styles.footnote}>{outcome?.footer}</Text>
         </View>
       )}
     </View>

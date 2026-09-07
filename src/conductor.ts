@@ -1,7 +1,8 @@
 import { modelCall } from "./errors.js";
 import { checkAbort, recentContext, resolveModel } from "./context.js";
 import type { ModelSource, TokenCounter } from "./types.js";
-import { NoObjectGeneratedError, Output, generateText } from "ai";
+import { Output, generateText } from "ai";
+import { isInvalidModelOutput } from "./model-errors.js";
 import { z } from "zod";
 import { budgetPrompt, clipTokens, PROMPT_SHARE } from "./budget.js";
 import { clip } from "./compress/structural.js";
@@ -138,7 +139,7 @@ const plan = async (input: {
   } catch (error) {
     // Only a malformed plan is the model's mistake to retry. Guardrails, a dead
     // session, or an unavailable model propagate so the turn escalates as model-error.
-    if (NoObjectGeneratedError.isInstance(error)) {
+    if (isInvalidModelOutput(error)) {
       return { ok: false, reason: "plan-invalid", hint: planInvalidHint(toolNames) };
     }
     throw error;

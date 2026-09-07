@@ -38,7 +38,8 @@ Metro loads the local harness source directly, so edits to `src/` and `example/`
 - `src/hooks/use-conversations.ts`: connects agent results and approvals to Zustand conversation actions.
 - `src/agents/goliath/lifecycle/`: lifecycle and trace logging.
 - `src/agents/goliath/tools/tasks/`: three tools. `createTask` and `completeTask` are `writes: true`, which is why
-  they prompt. The parameters are flat, which is what a 3B model fills in reliably.
+  they prompt. `listTasks` exposes IDs and titles; `completeTask` accepts an ID and checks it
+  against the current turn’s lookup before approval. Duplicate titles remain separate tasks.
 - `src/screens/home/home-screen.tsx`: composes focused inbox, chat, and sheet components.
 - `src/stores/app-store.ts`: Zustand state for conversations, drafts, navigation, and search.
 - `src/storage/`: local SQLite persistence for conversations, messages, and agent memory;

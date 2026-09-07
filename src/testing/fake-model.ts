@@ -3,7 +3,10 @@ import type { LanguageModelV4CallOptions, LanguageModelV4GenerateResult } from "
 
 /** One scripted reply. `json` is for structured output, `toolCall` for a worker step. */
 type ScriptedReply =
-  { text: string } | { json: unknown } | { toolCall: { name: string; input: unknown } };
+  | { text: string }
+  | { json: unknown }
+  | { error: Error }
+  | { toolCall: { name: string; input: unknown } };
 
 type FakeModel = MockLanguageModelV4 & {
   /** Every prompt the harness sent, in order, for assertions. */
@@ -24,6 +27,7 @@ const toResult = (
   reply: ScriptedReply,
   options: LanguageModelV4CallOptions,
 ): LanguageModelV4GenerateResult => {
+  if ("error" in reply) throw reply.error;
   const inputTokens = Math.ceil(promptChars(options) / 4);
   if ("toolCall" in reply) {
     const input = JSON.stringify(reply.toolCall.input ?? {});

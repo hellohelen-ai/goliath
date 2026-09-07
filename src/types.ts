@@ -66,6 +66,8 @@ type Exchange = {
   ask: string;
   answer: string;
   at: number;
+  /** The turn stopped early; retain its evidence without treating the reply as full completion. */
+  bestEffort?: boolean;
   /** Exact arguments, outcomes, and JSON-serializable outputs from this exchange. */
   steps?: StepRecord[];
 };

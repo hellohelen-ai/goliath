@@ -4,21 +4,16 @@ import { mockTaskStore } from "./mock-store";
 
 export const completeTask = defineTool({
   name: "completeTask",
-  description: "Mark a listed task done by its exact title.",
-  parameters: z.object({ title: z.string(), id: z.number().optional() }),
+  description: "Mark a task done using its ID from listTasks.",
+  parameters: z.object({ id: z.number().int().positive() }),
   requires: ["listTasks"],
-  resolveInput: ({ title }, context) => {
+  resolveInput: ({ id }, context) => {
     const listed = context.steps?.findLast((step) => step.tool === "listTasks")?.output;
-    const matches = z
-      .array(z.object({ id: z.number(), title: z.string() }))
-      .parse(listed)
-      .filter((task) => task.title === title);
-    if (matches.length !== 1) throw new Error("Choose exactly one listed task.");
-    return { title, id: matches[0]!.id };
+    const tasks = z.array(z.object({ id: z.number() })).parse(listed);
+    if (!tasks.some((task) => task.id === id))
+      throw new Error("Choose a task ID returned by listTasks in this turn.");
+    return { id };
   },
   writes: true,
-  execute: ({ id }) => {
-    if (id === undefined) throw new Error("A listed task must be selected first.");
-    return mockTaskStore.complete(id);
-  },
+  execute: ({ id }) => mockTaskStore.complete(id),
 });
