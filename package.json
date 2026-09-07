@@ -52,7 +52,10 @@
     "format:check": "prettier --check .",
     "check": "bun run typecheck && bun run format:check && bun run test && bun run build",
     "prepublishOnly": "bun run check",
-    "evals": "bun run evals/cli.ts"
+    "evals": "bun run evals/cli.ts",
+    "starter:export": "bun scripts/starter/export.ts",
+    "starter:pack": "bun scripts/starter/pack.ts",
+    "starter:check": "bun run build && bun scripts/starter/check.ts"
   },
   "peerDependencies": {
     "ai": "^7.0.0",

@@ -48,6 +48,19 @@ Open the PR against `main`. CI has to be green. If the change is user-visible, a
 
 Maintainers only.
 
+SDK and example changes also run `bun run starter:check <artifact-directory>` in CI: the check
+creates an Expo app outside the checkout and tests it against an SDK tarball. Keep the example
+as the source; edit the export mapping and starter README in `scripts/starter/` when its layout
+changes. The publish workflow publishes `@hellohelen-ai/expo-template-goliath` to npm after
+the matching SDK release succeeds; both packages use the same release version.
+
+The template needs its own one-time npm setup. After a maintainer logs in with `npm login`,
+pack and publish the tested template with `npm publish <template.tgz> --access public`, then
+configure its trusted publisher for GitHub owner `hellohelen-ai`, repository `goliath`, workflow
+`publish.yml`, environment `release`, with direct publishing allowed. This connection is
+separate from the SDK’s existing trusted publisher; no npm token belongs in the repository.
+See the [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) for details.
+
 Before cutting anything, run the **release-preflight** workflow from the Actions tab. It builds
 the exact tarball a release would push, installs those bytes into a clean project, and uploads
 the artifact — so you can try the real thing before a version number exists. Nothing it does is

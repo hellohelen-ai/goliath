@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- Standalone Expo starter export and tarball commands sourced from the example, with pinned SDK
+  dependency, local assets, native context module, and customization instructions.
+- CI and release-preflight checks that scaffold a fresh app outside the repository, install the
+  packed SDK, and run typechecking, tests, Expo Doctor, and an iOS bundle.
+- Public npm starter template packaging and a release job publishing the template after the
+  matching SDK version, with a documented one-time trusted-publisher setup.
+
 ## [0.3.0] - 2026-09-07
 
 ### Fixed

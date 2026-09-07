@@ -419,3 +419,13 @@ and [API reference](https://hellohelen-ai.github.io/goliath/reference/filesystem
 For a step-by-step visual explanation, open [the standalone harness walkthrough](docs/harness-walkthrough.html)
 in a browser. It works offline and includes the normal, approval, repeated-call, refusal,
 malformed-plan, and file-retrieval paths.
+
+Create an app from the npm starter template (after its initial publication):
+
+```sh
+bun create expo my-app --template @hellohelen-ai/expo-template-goliath
+```
+
+The [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) covers customization,
+updates, and testing the packaged SDK outside this repository; local template tarballs remain
+available through `bun run starter:pack <artifact-directory>`.

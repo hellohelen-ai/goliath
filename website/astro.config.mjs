@@ -80,6 +80,7 @@ export default defineConfig({
           label: "Project",
           items: [
             { label: "Example app", slug: "project/example" },
+            { label: "Starter template", slug: "project/starter" },
             { label: "Contributing", slug: "project/contributing" },
             {
               label: "Changelog",
