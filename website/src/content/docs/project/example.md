@@ -32,14 +32,20 @@ Metro loads the local harness source directly, so edits to `src/` and `example/`
 
 ## What to look at
 
-- `src/tasks.ts`: three tools. `createTask` and `completeTask` are `writes: true`, which is why
+- `src/agents/goliath/agent.ts`: assembles the model, tools, and lifecycle extensions.
+- `src/agents/goliath/runtime.ts`: `ask`, `approve`, and `cancel`, with isolated agent memory per conversation.
+- `src/agents/goliath/use-goliath-agent.ts`: owns the runtime and disposes pending work on unmount.
+- `src/hooks/use-conversations.ts`: connects agent results and approvals to Zustand conversation actions.
+- `src/agents/goliath/lifecycle/`: lifecycle and trace logging.
+- `src/agents/goliath/tools/tasks/`: three tools. `createTask` and `completeTask` are `writes: true`, which is why
   they prompt. The parameters are flat, which is what a 3B model fills in reliably.
 - `src/screens/home/home-screen.tsx`: composes focused inbox, chat, and sheet components.
 - `src/stores/app-store.ts`: Zustand state for conversations, drafts, navigation, and search.
   State is held in memory for the current app session.
-- `src/hooks/`: navigation, search, input/scrolling, and one `createAgent` per conversation.
-  Conversation memory is separate; demo tasks are shared. Lifecycle events log to the console.
-- `src/tools/mock-tools.ts`: the shared catalog for the agent’s tools and suggested requests.
+- `src/hooks/`: navigation, search, Zustand subscriptions, and input/scrolling.
+- `src/agents/goliath/tools/index.ts`: the catalog for the agent’s tools and suggested requests.
+
+Each conversation owns an agent and its memory; demo tasks are shared across conversations.
 
 There is deliberately **no** `fallback`. The example is about what the phone finishes on its own;
 a cloud fallback would hide the moments when it cannot.

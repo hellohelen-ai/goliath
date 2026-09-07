@@ -1,7 +1,7 @@
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { useChatComposer } from "@/hooks/use-chat-composer";
 import type { Conversation } from "@/types/conversation";
-import type { ToolSuggestion } from "@/tools/mock-tools";
+import type { ToolSuggestion } from "@/agents/goliath";
 import { styles } from "../home.styles";
 import { ConversationHeader } from "./conversation-header";
 import { ConversationMessages } from "./conversation-messages";

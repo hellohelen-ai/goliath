@@ -1,4 +1,4 @@
-import { completeTask, createTask, listTasks } from "../tasks";
+import { completeTask, createTask, listTasks } from "./tasks";
 
 // Keep suggested requests next to the mock tools registered with the agent.
 const catalog = [

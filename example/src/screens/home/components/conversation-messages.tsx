@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { ScrollView, Text, View, type ScrollViewProps } from "react-native";
 import type { Conversation } from "@/types/conversation";
-import type { ToolSuggestion } from "@/tools/mock-tools";
+import type { ToolSuggestion } from "@/agents/goliath";
 import { styles } from "../home.styles";
 import { MessageBubble } from "./message-bubble";
 import { ToolSuggestions } from "./tool-suggestions";

@@ -33,7 +33,16 @@ port, pass `--port "$CONDUCTOR_PORT"` to either command.
 
 ## What to look at
 
-- `src/tasks.ts` — three tools. `createTask` and `completeTask` are marked `writes: true`, which
+- `src/agents/goliath/agent.ts` — assembles the Apple model, native context options, tools, and
+  lifecycle extensions; creates a fresh agent for each conversation.
+- `src/agents/goliath/runtime.ts` — `ask`, `approve`, and `cancel`, with an agent instance per
+  conversation; independent of React and Zustand.
+- `src/agents/goliath/use-goliath-agent.ts` — owns the runtime for the mounted screen and
+  disposes pending work on unmount.
+- `src/hooks/use-conversations.ts` — starts a message, calls `agent.ask`, and saves the result
+  or error; connects approval requests and buttons to conversation state.
+- `src/agents/goliath/lifecycle/` — lifecycle and trace logging, separate from React and UI state.
+- `src/agents/goliath/tools/tasks/` — three tools. `createTask` and `completeTask` are marked `writes: true`, which
   is why they prompt before running. Note the parameters are flat: primitives only, which is what a
   3B model fills in reliably.
 - `modules/goliath-context/` — a local Expo module exposing native capacity and token counting. Counting is enabled on iOS 26.4+; older releases use the harness estimate. Native tokenization counts prompt text and the serialized schema; the harness still reserves space for provider formatting.
@@ -43,16 +52,57 @@ port, pass `--port "$CONDUCTOR_PORT"` to either command.
   suggestions, and the composer.
 - `src/stores/app-store.ts` — Zustand state for conversations, drafts, navigation, and search,
   with actions that route background replies to the correct conversation.
-- `src/hooks/` — home actions, chat input/scrolling, and one `createAgent` per
-  conversation. Task writes wait for Allow or Cancel; lifecycle events log to the console.
-- `src/tools/mock-tools.ts` — registered mock tools and their suggestion metadata. Both the
+- `src/hooks/` — home actions, Zustand subscriptions, and chat input/scrolling.
+- `src/agents/goliath/tools/index.ts` — registered mock tools and their suggestion metadata. Both the
   welcome card and the suggestion sheet read this catalog.
 - `src/ui/agent-mark.tsx` — the shared stone SVG imported from the docs site; native SVG support
   requires a development build after installing dependencies.
 
 Conversations and tasks are held in memory for the current app session. Search filters actual
 conversation content, and suggested requests fill the composer for editing before sending.
-Store behavior is covered by `bun run test` from the example directory and the example CI job.
+Store and runtime behavior are covered by `bun run test` from the example directory and the example CI job.
+Runtime tests use the harness's scripted `fakeModel`, including approval and cancellation paths.
+
+Agent-specific code lives together, while screens and shared UI stay outside the agent module:
+
+```text
+src/
+├── agents/
+│   └── goliath/
+│       ├── agent.ts
+│       ├── runtime.ts
+│       ├── use-goliath-agent.ts
+│       ├── index.ts
+│       ├── lifecycle/
+│       │   └── logging.ts
+│       └── tools/
+│           ├── index.ts
+│           └── tasks/
+│               ├── create-task.ts
+│               ├── list-task.ts
+│               ├── complete-task.ts
+│               ├── types.ts
+│               ├── mock-store.ts
+│               └── index.ts
+├── screens/home/
+│   ├── components/
+│   └── home-screen.tsx
+├── hooks/
+├── stores/
+└── ui/
+```
+
+The conversation hook coordinates state changes around an agent request:
+
+```ts
+const result = await agent.ask(conversationId, text, {
+  onApproval: (request) => requestApproval(message, request),
+});
+completeTurn(message, result);
+```
+
+The runtime reuses the conversation's agent internally, preserving its memory across messages.
+The UI state store holds messages and drafts; it never holds agent instances or pending promises.
 
 There is deliberately **no** `fallback` configured. This example is about what the phone finishes
 on its own; adding a cloud fallback would hide the moments when it cannot.

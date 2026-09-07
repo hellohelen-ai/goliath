@@ -1,5 +1,5 @@
 import { Pressable, Text } from "react-native";
-import type { ToolSuggestion } from "@/tools/mock-tools";
+import type { ToolSuggestion } from "@/agents/goliath";
 import { colors, Icon, Sheet } from "@/ui/primitives";
 import { styles } from "../home.styles";
 

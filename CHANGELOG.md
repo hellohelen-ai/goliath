@@ -19,6 +19,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 - Zustand state for example conversations, drafts, navigation, and search, with coverage for
   background replies, concurrent sends, and conversation filtering.
 
+### Changed
+
+- Separated example agent execution from conversation state, with `ask`/`approve`/`cancel` in
+  an independent runtime and a small conversation hook connecting results and approvals to Zustand.
+- Organized the example agent under `src/agents/goliath/`, with separate configuration, React
+  integration, lifecycle logging, and task tools split into individual modules with shared mock data.
+
 ## [0.1.0] - 2026-09-05
 
 This release contains a breaking rename; see **Changed**.
