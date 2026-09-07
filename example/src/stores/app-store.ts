@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla";
+import type { RunResult } from "@hellohelen-ai/goliath";
 import type { ChatMessage, Conversation } from "../types/conversation";
 
 export type MessageAddress = { conversationId: string; messageId: string };
@@ -20,6 +21,10 @@ export type AppState = {
   toggleStartedFilter: () => void;
   setDraft: (id: string, draft: string) => void;
   startTurn: (address: MessageAddress, ask: string) => boolean;
+  completeTurn: (address: MessageAddress, result: RunResult) => void;
+  failTurn: (address: MessageAddress, error: unknown) => void;
+  requestApproval: (address: MessageAddress, request: { tool: string; input: unknown }) => void;
+  recordApproval: (address: MessageAddress, approved: boolean) => void;
   updateMessage: (address: MessageAddress, update: (message: ChatMessage) => ChatMessage) => void;
 };
 
@@ -30,7 +35,7 @@ const makeConversation = (id: string): Conversation => ({
   draft: "",
 });
 
-// Pure, in-memory state. Agent instances and pending native work stay in the runtime hook.
+// Pure, in-memory state. Agent instances and pending native work stay in the agent runtime.
 export function createAppStore() {
   let sequence = 0;
   return createStore<AppState>((set, get) => ({
@@ -79,6 +84,34 @@ export function createAppStore() {
       }));
       return true;
     },
+    completeTurn: (address, result) =>
+      get().updateMessage(address, (message) => ({
+        ...message,
+        result,
+        status: "completed",
+        text: result.text || "I couldn’t finish this request. Try asking for one smaller step.",
+      })),
+    failTurn: (address, error) =>
+      get().updateMessage(address, (message) => ({
+        ...message,
+        status: "error",
+        text: error instanceof Error ? error.message : String(error),
+        confirmation: message.confirmation
+          ? { ...message.confirmation, decision: message.confirmation.decision ?? false }
+          : undefined,
+      })),
+    requestApproval: (address, { tool, input }) =>
+      get().updateMessage(address, (message) => ({
+        ...message,
+        confirmation: { tool, input },
+      })),
+    recordApproval: (address, approved) =>
+      get().updateMessage(address, (message) => ({
+        ...message,
+        confirmation: message.confirmation
+          ? { ...message.confirmation, decision: approved }
+          : undefined,
+      })),
     updateMessage: ({ conversationId, messageId }, update) =>
       set(({ conversations }) => ({
         conversations: conversations.map((chat) =>

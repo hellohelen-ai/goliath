@@ -1,14 +1,13 @@
-import { apple } from "@react-native-ai/apple";
 import { useRef } from "react";
 import { ActionSheetIOS, findNodeHandle, Keyboard, Platform, type View } from "react-native";
-import { mockSuggestions } from "@/tools/mock-tools";
+import { mockSuggestions } from "@/agents/goliath";
 import { useShallow } from "zustand/react/shallow";
 import { selectFilteredConversations } from "@/stores/app-store";
 import { useAppStore } from "./use-app-store";
 import { useConversations } from "./use-conversations";
 
 export function useHomeScreen() {
-  const { send, confirm } = useConversations();
+  const { send, confirm, available } = useConversations();
   const state = useAppStore(
     useShallow((state) => ({
       conversations: state.conversations,
@@ -44,7 +43,6 @@ export function useHomeScreen() {
     toggleStartedFilter,
   } = state;
   const menuAnchor = useRef<View>(null);
-  const available = apple.isAvailable();
   const chat = conversations.find(({ id }) => id === selectedId);
 
   const openChat = (id: string) => {
