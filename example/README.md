@@ -34,9 +34,9 @@ port, pass `--port "$CONDUCTOR_PORT"` to either command.
 ## What to look at
 
 - `src/agents/goliath/agent.ts` — assembles the Apple model, native context options, tools, and
-  lifecycle extensions; creates a fresh agent for each conversation.
-- `src/agents/goliath/runtime.ts` — `ask`, `approve`, and `cancel`, with an agent instance per
-  conversation; independent of React and Zustand.
+  lifecycle extensions; exports one shared agent serving every conversation.
+- `src/agents/goliath/runtime.ts` — adapts approval buttons and cancellation to
+  `agent.run(text, { conversationId, confirm, signal })`; independent of React and Zustand.
 - `src/agents/goliath/use-goliath-agent.ts` — owns the runtime for the mounted screen and
   disposes pending work on unmount.
 - `src/hooks/use-conversations.ts` — starts a message, calls `agent.ask`, and saves the result
@@ -101,8 +101,10 @@ const result = await agent.ask(conversationId, text, {
 completeTurn(message, result);
 ```
 
-The runtime reuses the conversation's agent internally, preserving its memory across messages.
+Goliath selects each conversation's memory and request queue internally using its ID.
 The UI state store holds messages and drafts; it never holds agent instances or pending promises.
+The example uses in-process conversation memory. Its approval promises end when the app closes;
+they are not durable checkpoints.
 
 There is deliberately **no** `fallback` configured. This example is about what the phone finishes
 on its own; adding a cloud fallback would hide the moments when it cannot.

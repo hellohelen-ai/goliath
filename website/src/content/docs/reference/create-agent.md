@@ -7,39 +7,47 @@ description: Create an agent from a model, tools, memory, and a fallback.
 import { createAgent } from "@hellohelen-ai/goliath";
 
 const agent = createAgent(config);
-const result = await agent.run(ask, { signal, onEvent });
-agent.sessionFallback; // boolean
+const result = await agent.run(ask, { conversationId, signal, onEvent, confirm });
+agent.isSessionFallback(conversationId); // boolean
+agent.sessionFallback; // default conversation
 ```
 
 ## Config
 
-| Option         | Default             | Notes                                                                    |
-| -------------- | ------------------- | ------------------------------------------------------------------------ |
-| `outputSchema` | none                | Zod schema for guided structured device answers; keep it flat            |
-| `model`        | required            | Any AI SDK `LanguageModel`                                               |
-| `tools`        | `{}`                | Keep to five or fewer per agent. Flat schemas. One-sentence descriptions |
-| `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like |
-| `fallback`     | none                | Receives the ask, the brief, the step log, and the reason. Returns text  |
-| `confirm`      | approve all         | Asked before any `writes: true` tool runs                                |
-| `window`       | `4096`              | Apple Foundation Models. The brief is budgeted at one eighth of it       |
-| `maxSteps`     | `5`                 | Maximum steps per turn                                                   |
-| `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                        |
-| `facts`        | none                | `Record<string, string>` or a function called once per turn              |
-| `examples`     | none                | Two or three worked plans for the conductor. ~60 tokens per step each    |
-| `compressors`  | none                | Deprecated; never invoked. Use lifecycle extensions instead              |
-| `extensions`   | `[]`                | Ordered, awaited [lifecycle hooks](/goliath/guides/extensions/)          |
-| `onEvent`      | none                | Every trace event as it happens                                          |
+| Option         | Default                     | Notes                                                                    |
+| -------------- | --------------------------- | ------------------------------------------------------------------------ |
+| `outputSchema` | none                        | Zod schema for guided structured device answers; keep it flat            |
+| `model`        | required                    | Any AI SDK `LanguageModel`                                               |
+| `tools`        | `{}`                        | Keep to five or fewer per agent. Flat schemas. One-sentence descriptions |
+| `memory`       | in-process per conversation | Default `Memory` object or `(conversationId) => Memory` factory          |
+| `fallback`     | none                        | Receives the ask, the brief, the step log, and the reason. Returns text  |
+| `confirm`      | approve all                 | Asked before any `writes: true` tool runs                                |
+| `window`       | `4096`                      | Apple Foundation Models. The brief is budgeted at one eighth of it       |
+| `maxSteps`     | `5`                         | Maximum steps per turn                                                   |
+| `instructions` | a careful assistant         | One or two sentences. Every prompt starts with it                        |
+| `facts`        | none                        | `Record<string, string>` or a function called once per turn              |
+| `examples`     | none                        | Two or three worked plans for the conductor. ~60 tokens per step each    |
+| `compressors`  | none                        | Deprecated; never invoked. Use lifecycle extensions instead              |
+| `extensions`   | `[]`                        | Ordered, awaited [lifecycle hooks](/goliath/guides/extensions/)          |
+| `onEvent`      | none                        | Every trace event as it happens                                          |
 
 The `tools` map is re-keyed by each tool's own `name`, so the property names you use do not
 matter.
 
 ## `run(ask, options?)`
 
-| Option         | Notes                                                                |
-| -------------- | -------------------------------------------------------------------- |
-| `outputSchema` | Overrides the config schema for this turn and infers its output type |
-| `signal`       | An `AbortSignal`, passed to tools and the fallback                   |
-| `onEvent`      | Called for this turn's events, in addition to the config-level hook  |
+| Option           | Notes                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `outputSchema`   | Overrides the config schema for this turn and infers its output type                           |
+| `signal`         | An `AbortSignal`, passed to tools and the fallback                                             |
+| `onEvent`        | Called for this turn's events, in addition to the config-level hook                            |
+| `conversationId` | Nonempty string selecting isolated memory and session state; omit for the default conversation |
+| `confirm`        | Approval handler for this run; overrides the config-level handler                              |
+
+Runs in the same conversation are queued in order; different conversations can run concurrently.
+The default conversation is separate from every named ID. IDs select state and are not automatically
+injected into model prompts. A memory factory is required when combining named conversations with
+custom memory; see [Memory](/goliath/guides/memory/).
 
 `run` also accepts `context`, application data passed to extensions and tools without automatic
 prompt or memory injection. With `createAgent<AppContext>(config)`, the context argument is
@@ -82,8 +90,10 @@ See [Results and events](/goliath/reference/results/) for `text`, `output`, and 
 
 ## `sessionFallback`
 
-`true` once three turns in a row died on the device with a model error. Later turns go straight to
-the fallback, if one is configured, without calling the model.
+Reports the default conversation: `true` once three turns in a row died on the device with a model
+error. Later turns in that conversation go straight to the fallback, if one is configured, without
+calling the model. Use `agent.isSessionFallback(conversationId)` for named conversations; their
+error counts are independent. An unused conversation reports `false`.
 
 ## Exported constants
 

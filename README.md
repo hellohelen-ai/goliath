@@ -93,20 +93,55 @@ tool loop natively. Both fall over on a phone for the same reasons:
 
 ## What you supply
 
-| Option         | Default             | Notes                                                                      |
-| -------------- | ------------------- | -------------------------------------------------------------------------- |
-| `outputSchema` | none                | Optional Zod schema for a typed device answer; overridable per run         |
-| `model`        | required            | AI SDK model, or a factory returning one                                   |
-| `tools`        | `{}`                | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
-| `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like   |
-| `fallback`     | none                | Receives the ask, the brief, the step log, and the reason. Returns text    |
-| `confirm`      | approve all         | Asked before any `writes: true` tool runs                                  |
-| `window`       | `4096`              | Input + output window; a number or async capacity callback                 |
-| `countTokens`  | estimate            | Optional async native/provider text tokenizer                              |
-| `maxSteps`     | `5`                 | Maximum steps per turn                                                     |
-| `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
-| `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
-| `extensions`   | `[]`                | Ordered, awaited lifecycle hooks for transformations and policy decisions  |
+| Option         | Default                     | Notes                                                                      |
+| -------------- | --------------------------- | -------------------------------------------------------------------------- |
+| `outputSchema` | none                        | Optional Zod schema for a typed device answer; overridable per run         |
+| `model`        | required                    | AI SDK model, or a factory returning one                                   |
+| `tools`        | `{}`                        | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
+| `memory`       | in-process per conversation | A default `Memory` object or `(conversationId) => Memory` factory          |
+| `fallback`     | none                        | Receives the ask, the brief, the step log, and the reason. Returns text    |
+| `confirm`      | approve all                 | Asked before any `writes: true` tool runs                                  |
+| `window`       | `4096`                      | Input + output window; a number or async capacity callback                 |
+| `countTokens`  | estimate                    | Optional async native/provider text tokenizer                              |
+| `maxSteps`     | `5`                         | Maximum steps per turn                                                     |
+| `instructions` | a careful assistant         | One or two sentences. Every prompt starts with it                          |
+| `onEvent`      | none                        | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
+| `extensions`   | `[]`                        | Ordered, awaited lifecycle hooks for transformations and policy decisions  |
+
+## Conversations
+
+Configure an agent once and select the conversation on each run:
+
+```ts
+const agent = createAgent({ model, tools });
+await agent.run("Remember that my meeting is Friday", { conversationId: "work" });
+await agent.run("Add milk to my list", { conversationId: "shopping" });
+await agent.run("When is my meeting?", { conversationId: "work" });
+```
+
+Each ID has independent memory, a request queue, and model-error fallback tracking. Omitting
+`conversationId` uses a separate default conversation, preserving existing `run(ask)` behavior.
+IDs must be nonempty strings and are not automatically included in prompts. Hooks and tools
+receive `conversationId` separately from your application `context`.
+
+For persistent history, provide a memory factory returning a separate storage key per conversation:
+
+```ts
+const agent = createAgent({
+  model,
+  memory: (id) => keyValueMemory(storage, `goliath:${JSON.stringify(id ?? null)}`),
+});
+```
+
+The factory is called once per conversation per agent instance; `undefined` identifies the
+default conversation. A single `Memory` object remains supported for the default conversation;
+named runs reject it to prevent accidental history sharing. The default in-process memory lasts
+as long as the agent instance. Storage adapters persist conversation history, not paused execution.
+
+Pass `confirm` in run options to handle that request's approvals; it overrides the configured
+handler. Existing `signal` and `onEvent` options still apply per request.
+`agent.isSessionFallback(id)` reports fallback status for a conversation; `agent.sessionFallback`
+continues to report the default conversation's status.
 
 ## Structured turn results
 
@@ -239,8 +274,8 @@ const agent = createAgent({
 implements it for Apple Foundation Models, with native counting on iOS 26.4+ and estimates on
 older releases. A model factory is called for each generation, including retries and memory
 updates. Providers must still start fresh sessions internally and honor `maxOutputTokens`.
-Calls to `run()` on one Goliath instance are serialized so overlapping requests cannot race its
-memory. See Apple's [context and token APIs](https://developer.apple.com/videos/play/wwdc2026/241/).
+Calls to `run()` within the same conversation are serialized so they cannot race its memory;
+different conversations can run concurrently. See Apple's [context and token APIs](https://developer.apple.com/videos/play/wwdc2026/241/).
 
 Memory maintenance is best effort: an oversized or failed scribe call emits `memory-error`, keeps
 the previous brief and latest three exchanges, and preserves the completed answer. Evicted

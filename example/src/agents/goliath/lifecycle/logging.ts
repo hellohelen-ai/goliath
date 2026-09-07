@@ -1,24 +1,25 @@
 import type { GoliathExtension, TraceEvent } from "@hellohelen-ai/goliath";
 
-export function createLifecycleLogger<C extends { conversationId: string }>(): GoliathExtension<C> {
-  const log = (context: { readonly conversationId: string }, message: string) => {
-    console.info(`[Goliath ${context.conversationId}] ${message}`);
+export function createLifecycleLogger(): GoliathExtension {
+  const log = (conversationId: string | undefined, message: string) => {
+    console.info(`[Goliath ${conversationId ?? "default"}] ${message}`);
   };
 
   return {
     name: "live-log",
-    beforeRun: ({ context }) => log(context, "beforeRun"),
-    afterRecall: ({ context }) => log(context, "afterRecall"),
-    beforePlan: ({ context, attempt }) => log(context, `beforePlan · attempt ${attempt}`),
-    afterPlan: ({ context, plan }) => log(context, `afterPlan · ${plan.kind}`),
-    beforeTool: ({ context, tool }) => log(context, `beforeTool · ${tool.name}`),
-    afterTool: ({ context, tool, outcome }) =>
-      log(context, `afterTool · ${tool.name} · ${outcome.status}`),
-    beforeFallback: ({ context }) => log(context, "beforeFallback"),
-    afterAnswer: ({ context }) => log(context, "afterAnswer"),
-    beforeRemember: ({ context }) => log(context, "beforeRemember"),
-    onError: ({ context, origin }) => log(context, `onError · ${origin}`),
-    onFinish: ({ context, outcome }) => log(context, `onFinish · ${outcome.status}`),
+    beforeRun: ({ conversationId }) => log(conversationId, "beforeRun"),
+    afterRecall: ({ conversationId }) => log(conversationId, "afterRecall"),
+    beforePlan: ({ conversationId, attempt }) =>
+      log(conversationId, `beforePlan · attempt ${attempt}`),
+    afterPlan: ({ conversationId, plan }) => log(conversationId, `afterPlan · ${plan.kind}`),
+    beforeTool: ({ conversationId, tool }) => log(conversationId, `beforeTool · ${tool.name}`),
+    afterTool: ({ conversationId, tool, outcome }) =>
+      log(conversationId, `afterTool · ${tool.name} · ${outcome.status}`),
+    beforeFallback: ({ conversationId }) => log(conversationId, "beforeFallback"),
+    afterAnswer: ({ conversationId }) => log(conversationId, "afterAnswer"),
+    beforeRemember: ({ conversationId }) => log(conversationId, "beforeRemember"),
+    onError: ({ conversationId, origin }) => log(conversationId, `onError · ${origin}`),
+    onFinish: ({ conversationId, outcome }) => log(conversationId, `onFinish · ${outcome.status}`),
   };
 }
 

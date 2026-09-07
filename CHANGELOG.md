@@ -8,6 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+### Added
+
+- Conversation-aware `agent.run(text, { conversationId })`, with isolated memory, request queues,
+  context-window tracking, and fallback counts; existing calls use a separate default conversation.
+- Memory factories for persistent history per conversation, per-run approval callbacks, and
+  `isSessionFallback(conversationId)`; hooks and tools receive conversation IDs outside prompts.
+
+### Changed
+
+- The example exports one shared agent from `agent.ts`; Goliath manages conversation sessions
+  while Zustand holds UI state and the runtime adapter handles approval buttons and cancellation.
+
 ## [0.2.0] - 2026-09-07
 
 ### Added

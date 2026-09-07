@@ -18,6 +18,25 @@ pending.
 
 ## Adapters
 
+One agent can serve multiple conversations using `agent.run(text, { conversationId })`. Each ID
+gets its own memory and request queue; `run(text)` uses a separate default conversation.
+Without an adapter, history lives in process for the lifetime of the agent instance.
+
+For persistent named conversations, configure a factory:
+
+```ts
+const agent = createAgent({
+  model,
+  memory: (id) => keyValueMemory(storage, `goliath:${JSON.stringify(id ?? null)}`),
+});
+await agent.run("Remember my meeting", { conversationId: "work" });
+```
+
+The factory runs once per ID per agent instance, receiving `undefined` for the default conversation.
+Return separate memory for each ID. A single `Memory` object is still supported for default runs,
+but named runs reject that configuration to prevent sharing conversation history accidentally.
+Memory adapters persist completed history; they do not checkpoint a running or approval-paused turn.
+
 Two are built in. Any object with `load` and `save` over `MemoryState` works.
 
 ### `inMemory`
