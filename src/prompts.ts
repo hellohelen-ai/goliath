@@ -119,12 +119,16 @@ const workerSystem = (instructions: string, brief: string): string =>
     "Fill in every argument from the ask and supplied context, including optional ones you can see. Copy names, numbers, and dates exactly. If a required value is not in the ask, leave it empty and name it in `missing`.",
   ].join("\n");
 
-const answerSystem = (instructions: string): string =>
-  `${instructions}\nAnswer in two or three short sentences, using only what is below. Do not mention tools.`;
+const answerSystem = (instructions: string, structured = false): string =>
+  structured
+    ? `${instructions}\nAnswer using the supplied JSON schema and only what is below. Do not mention tools.`
+    : `${instructions}\nAnswer in two or three short sentences, using only what is below. Do not mention tools.`;
 
 /** smolagents' provide_final_answer: when the loop is stuck, still say something useful. */
-const bestEffortSystem = (instructions: string): string =>
-  `${instructions}\nYou could not finish this. In one or two short sentences, tell the user what you found and what is still open, using only what is below. Do not mention tools or errors by name.`;
+const bestEffortSystem = (instructions: string, structured = false): string =>
+  structured
+    ? `${instructions}\nYou could not finish this. Use the supplied JSON schema to report what you found and what is still open, using only what is below. Do not claim unfinished actions succeeded. Do not mention tools or errors by name.`
+    : `${instructions}\nYou could not finish this. In one or two short sentences, tell the user what you found and what is still open, using only what is below. Do not mention tools or errors by name.`;
 
 const answerUser = (input: {
   ask: string;

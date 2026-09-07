@@ -115,9 +115,12 @@ const withMissing = (schema: z.ZodType): z.ZodType =>
       })
     : schema;
 
-/** The closing step: turn the step log into two or three sentences. */
+type AnswerOutcome = { ok: true; text: string; output?: unknown } | { ok: false };
+
+/** The closing step: prose by default, or a validated structured answer with one retry. */
 const runAnswerStep = async (input: {
   model: ModelSource;
+  outputSchema?: z.ZodType;
   countTokens?: TokenCounter;
   instructions: string;
   ask: string;
@@ -131,11 +134,11 @@ const runAnswerStep = async (input: {
   /** The loop stalled; say what was found and what is open. */
   bestEffort?: boolean;
   signal?: AbortSignal;
-}): Promise<string> => {
+}): Promise<AnswerOutcome> => {
   checkAbort(input.signal);
   const system = input.bestEffort
-    ? bestEffortSystem(input.instructions)
-    : answerSystem(input.instructions);
+    ? bestEffortSystem(input.instructions, !!input.outputSchema)
+    : answerSystem(input.instructions, !!input.outputSchema);
   const render = (steps: StepRecord[]) => {
     const base = answerUser({
       ask: input.ask,
@@ -146,28 +149,51 @@ const runAnswerStep = async (input: {
     return input.nudge ? `${base}\n\n${input.nudge}` : base;
   };
   const maxOutputTokens = 384;
-  const prompt = await budgetPrompt({
-    label: "answer",
-    window: input.window,
-    maxOutputTokens,
-    system,
-    prompt: render(input.steps),
-    compact: () => render(trimSteps(input.steps)),
-    ...(input.emit ? { emit: input.emit } : {}),
-    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
-  });
-  const result = await modelCall("answer", () =>
-    generateText({
-      model: resolveModel(input.model),
-      system,
-      prompt,
+  const output = input.outputSchema ? Output.object({ schema: input.outputSchema }) : undefined;
+  const responseFormat = output ? await output.responseFormat : undefined;
+  for (let attempt = 0; attempt < (output ? 2 : 1); attempt++) {
+    checkAbort(input.signal);
+    const renderAttempt = (steps: StepRecord[]) =>
+      render(steps) + (attempt ? `\n\n${INVALID_ANSWER_NUDGE}` : "");
+    const prompt = await budgetPrompt({
+      label: "answer",
+      window: input.window,
       maxOutputTokens,
-      maxRetries: 0,
-      ...(input.signal ? { abortSignal: input.signal } : {}),
-    }),
-  );
-  return result.text.trim();
+      system,
+      prompt: renderAttempt(input.steps),
+      ...(responseFormat ? { responseFormat } : {}),
+      compact: () => renderAttempt(trimSteps(input.steps)),
+      ...(input.emit ? { emit: input.emit } : {}),
+      ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+    });
+    checkAbort(input.signal);
+    try {
+      const result = await modelCall("answer", () =>
+        generateText({
+          model: resolveModel(input.model),
+          ...(output ? { output } : {}),
+          system,
+          prompt,
+          maxOutputTokens,
+          maxRetries: 0,
+          ...(input.signal ? { abortSignal: input.signal } : {}),
+        }),
+      );
+      // The SDK has already validated and transformed output. Do not parse it again.
+      return {
+        ok: true,
+        text: result.text.trim(),
+        ...(output ? { output: result.output } : {}),
+      };
+    } catch (error) {
+      if (!output || !NoObjectGeneratedError.isInstance(error)) throw error;
+    }
+  }
+  return { ok: false };
 };
+
+const INVALID_ANSWER_NUDGE =
+  "Your last reply was not valid. Reply with JSON matching the supplied schema, using only the context above.";
 
 export { needsArguments, runAnswerStep, prepareToolCall };
 export type { PreparedToolCall };

@@ -15,6 +15,7 @@ agent.sessionFallback; // boolean
 
 | Option         | Default             | Notes                                                                    |
 | -------------- | ------------------- | ------------------------------------------------------------------------ |
+| `outputSchema` | none                | Zod schema for guided structured device answers; keep it flat            |
 | `model`        | required            | Any AI SDK `LanguageModel`                                               |
 | `tools`        | `{}`                | Keep to five or fewer per agent. Flat schemas. One-sentence descriptions |
 | `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like |
@@ -34,10 +35,11 @@ matter.
 
 ## `run(ask, options?)`
 
-| Option    | Notes                                                               |
-| --------- | ------------------------------------------------------------------- |
-| `signal`  | An `AbortSignal`, passed to tools and the fallback                  |
-| `onEvent` | Called for this turn's events, in addition to the config-level hook |
+| Option         | Notes                                                                |
+| -------------- | -------------------------------------------------------------------- |
+| `outputSchema` | Overrides the config schema for this turn and infers its output type |
+| `signal`       | An `AbortSignal`, passed to tools and the fallback                   |
+| `onEvent`      | Called for this turn's events, in addition to the config-level hook  |
 
 `run` also accepts `context`, application data passed to extensions and tools without automatic
 prompt or memory injection. With `createAgent<AppContext>(config)`, the context argument is
@@ -46,6 +48,37 @@ required and checked against `AppContext`; existing untyped `run(ask)` calls sti
 Returns a [`RunResult`](/goliath/reference/results/), including stop provenance and cleanup
 diagnostics when applicable. See [Lifecycle extensions](/goliath/guides/extensions/) for the hook
 contract. `window` must be positive and finite; `maxSteps` must be a nonnegative integer.
+
+## Structured answers
+
+```ts
+import { z } from "zod";
+
+const outputSchema = z.object({ reply: z.string(), action: z.enum(["rest", "walk"]) });
+const agent = createAgent({ model, outputSchema });
+const result = await agent.run("Suggest a small action");
+result.output; // { reply: string; action: "rest" | "walk" } | undefined
+
+const count = await agent.run("Count my tasks", {
+  outputSchema: z.object({ count: z.number() }),
+});
+count.output; // { count: number } | undefined
+```
+
+`GoliathConfig<C, T>`, `Agent<C, T>`, and `RunOptions<C, T>` retain application context as their
+first type parameter and use the second for structured output. `createAgent` infers both from
+the config. If you explicitly supply a context type, supply the output type too:
+`createAgent<AppContext, z.infer<typeof outputSchema>>(config)`. Per-run schemas infer their
+output independently and still require the configured application context.
+
+The existing answer call uses guided structured generation. Keep schemas flat and small: a
+roughly 3B model can produce valid JSON while still getting complex answers wrong. The serialized
+schema counts toward the input budget; the output cap remains 384 tokens. No schema means no
+additional tokens or calls. Invalid JSON or schema validation triggers one retry with a short
+correction, then `answer-invalid` escalation. Without fallback, exhausted validation returns
+empty text and no output. Best-effort device answers also use the schema and one retry.
+
+See [Results and events](/goliath/reference/results/) for `text`, `output`, and lifecycle semantics.
 
 ## `sessionFallback`
 

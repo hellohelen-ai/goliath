@@ -160,7 +160,7 @@ describe("context window protection", () => {
       window: 2048,
       bestEffort: true,
     });
-    expect(text).toBe("partial answer");
+    expect(text).toEqual({ ok: true, text: "partial answer" });
     expect(model.calls[0]?.maxOutputTokens).toBe(384);
     expect(JSON.stringify(model.calls[0]?.prompt).split("x".repeat(1400))).toHaveLength(2);
     expect(steps[0]?.result?.length).toBeGreaterThan(1400);

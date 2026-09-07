@@ -10,6 +10,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Optional `outputSchema` on `createAgent` or individual `run` calls for guided structured
+  device answers with inferred `RunResult<T>.output`, schema-aware input budgeting, and one
+  validation retry. Cloud fallback and extension stops remain text-only.
+
 - A dark conversation UI for the example, with an inbox, search, suggested requests, inline
   task confirmations, and per-conversation agent memory.
 - Console lifecycle logging in the example app, with Fast Refresh for the local harness source

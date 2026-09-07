@@ -6,8 +6,9 @@ description: RunResult, StepRecord, and TraceEvent.
 ## `RunResult`
 
 ```ts
-type RunResult = {
+type RunResult<T = unknown> = {
   text: string;
+  output?: T;
   handledBy: "device" | "cloud";
   bestEffort?: boolean;
   steps: StepRecord[];
@@ -21,6 +22,17 @@ type RunResult = {
 written from the step log. `stopped` identifies an extension that ended the run with its own text.
 `diagnostics` contains errors from `onError` or `onFinish` observers; these do not replace the
 original outcome. See the [extension guide](/goliath/guides/extensions/#errors-cancellation-and-limits).
+
+With `outputSchema`, `output` is the validated device answer, typed from the schema. `text`
+contains the generated JSON, without a separate prose generation call. The SDK applies schema
+transforms once; `text` retains the original JSON even when transforms change `output`.
+`afterAnswer` can rewrite `text` for display without changing `output`. Answer events, answer
+step records, and memory keep the final text; `onFinish` also sees `result.output`.
+
+Structured output is device-only. Cloud fallback, extension stops, and failed generation omit
+`output`, so callers must check it before use. Best-effort device answers can include validated
+output but may describe an incomplete task; check `bestEffort` too. Without `outputSchema`, text
+behavior is unchanged and `output` is absent.
 
 ## `StepRecord`
 

@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import { inMemory } from "./memory/in-memory.js";
 import { runTurn } from "./run-turn.js";
 import type { GoliathConfig, RunResult, TraceEvent } from "./types.js";
@@ -6,20 +7,28 @@ const DEFAULT_WINDOW = 4096;
 const DEFAULT_MAX_STEPS = 5;
 const SESSION_FALLBACK_AFTER = 3;
 
-type RunOptions<C = unknown> = {
+type RunOptions<C = unknown, T = unknown> = {
+  /** Override the configured structured answer schema for this turn. */
+  outputSchema?: z.ZodType<T>;
   signal?: AbortSignal;
   onEvent?: (event: TraceEvent) => void;
 } & (unknown extends C ? { context?: C } : { context: C });
-type Agent<C = unknown> = {
-  run: (
-    ask: string,
-    ...options: unknown extends C ? [options?: RunOptions<C>] : [options: RunOptions<C>]
-  ) => Promise<RunResult>;
+type Agent<C = unknown, T = unknown> = {
+  run: {
+    <OUTPUT>(
+      ask: string,
+      options: RunOptions<C, OUTPUT> & { outputSchema: z.ZodType<OUTPUT> },
+    ): Promise<RunResult<OUTPUT>>;
+    (
+      ask: string,
+      ...options: unknown extends C ? [options?: RunOptions<C, T>] : [options: RunOptions<C, T>]
+    ): Promise<RunResult<T>>;
+  };
   readonly sessionFallback: boolean;
 };
 
 /** Build a reusable harness. Extension state is allocated separately for every run. */
-const createAgent = <C = unknown>(config: GoliathConfig<C>): Agent<C> => {
+const createAgent = <C = unknown, T = unknown>(config: GoliathConfig<C, T>): Agent<C, T> => {
   if (typeof config.window === "number") validateWindow(config.window);
   let lastWindow = typeof config.window === "number" ? config.window : DEFAULT_WINDOW;
   let pending: Promise<unknown> = Promise.resolve();
@@ -52,11 +61,13 @@ const createAgent = <C = unknown>(config: GoliathConfig<C>): Agent<C> => {
           : (config.window ?? DEFAULT_WINDOW);
     validateWindow(window);
     lastWindow = window;
+    const outputSchema = options.outputSchema ?? config.outputSchema;
     const result = await runTurn<C>({
       ask,
       model: config.model,
       ...(config.countTokens ? { countTokens: config.countTokens } : {}),
       tools,
+      ...(outputSchema ? { outputSchema } : {}),
       memory,
       confirm,
       extensions,
@@ -89,7 +100,7 @@ const createAgent = <C = unknown>(config: GoliathConfig<C>): Agent<C> => {
       const result = pending.then(() => run(ask, options));
       pending = result.catch(() => undefined);
       return result;
-    }) as Agent<C>["run"],
+    }) as Agent<C, T>["run"],
     get sessionFallback() {
       return consecutiveModelErrors >= SESSION_FALLBACK_AFTER;
     },
