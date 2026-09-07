@@ -9,14 +9,18 @@ import { z } from "zod";
 
 const completeTask = defineTool({
   name: "completeTask",
-  description: "Mark a task done.",
-  parameters: z.object({ title: z.string() }),
+  description: "Mark a task done using its ID from listTasks.",
+  parameters: z.object({ id: z.number().int().positive() }),
   writes: true,
   requires: ["listTasks"],
-  execute: ({ title }) => tasks.complete(title),
+  execute: ({ id }) => tasks.complete(id),
   toModelOutput: (result) => `done: ${result.title}`,
 });
 ```
+
+Return IDs alongside titles in `listTasks` output so the model can select an exact task.
+The example app also uses `resolveInput` to check that the selected ID appeared in this turn’s
+lookup before approval or execution; `requires` only checks that the prerequisite tool ran.
 
 `defineTool` is an identity function that pins the types. Everything it accepts is on
 [the reference page](/goliath/reference/define-tool/). This page is about what makes a tool work

@@ -1,4 +1,5 @@
-import { NoObjectGeneratedError, Output, generateText } from "ai";
+import { Output, generateText } from "ai";
+import { isInvalidModelOutput } from "./model-errors.js";
 import { z } from "zod";
 import { modelCall } from "./errors.js";
 import { budgetPrompt, clipTokens } from "./budget.js";
@@ -80,8 +81,7 @@ const prepareToolCall = async (input: {
         args = rest;
       } else args = result.output;
     } catch (error) {
-      if (NoObjectGeneratedError.isInstance(error))
-        return { ok: false, reason: "tool-args-invalid" };
+      if (isInvalidModelOutput(error)) return { ok: false, reason: "tool-args-invalid" };
       throw error;
     }
     // Output.object already validated and transformed the generated arguments.
@@ -186,7 +186,7 @@ const runAnswerStep = async (input: {
         ...(output ? { output: result.output } : {}),
       };
     } catch (error) {
-      if (!output || !NoObjectGeneratedError.isInstance(error)) throw error;
+      if (!output || !isInvalidModelOutput(error)) throw error;
     }
   }
   return { ok: false };

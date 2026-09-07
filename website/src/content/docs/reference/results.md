@@ -75,3 +75,11 @@ type TraceEvent =
 ```
 
 See the [Tracing guide](/goliath/guides/tracing/) for when each fires.
+
+The example renders empty, stopped, or best-effort outcomes as unfinished, with the latest
+escalation reason determining the message. “On-device” describes execution location; it does not
+mean the request succeeded. A later failure does not roll back earlier tool effects.
+
+Nonempty best-effort replies can be remembered: `Exchange.bestEffort?: boolean` marks their
+partial status in recalled prompts and scribe input. The raw tool records remain available,
+and prerequisites and approvals still apply to subsequent actions.

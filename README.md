@@ -415,3 +415,7 @@ Choose `inMemoryFilesystem` for scratch space, `sqliteFilesystem` for persistenc
 Writes are opt-in and require an explicit approval handler. Excerpts automatically use the
 harness's context budget. See the [virtual files guide](https://hellohelen-ai.github.io/goliath/guides/filesystem/)
 and [API reference](https://hellohelen-ai.github.io/goliath/reference/filesystem/).
+
+For a step-by-step visual explanation, open [the standalone harness walkthrough](docs/harness-walkthrough.html)
+in a browser. It works offline and includes the normal, approval, repeated-call, refusal,
+malformed-plan, and file-retrieval paths.

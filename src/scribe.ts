@@ -79,7 +79,9 @@ const fold = async (input: {
     prompt: scribeUser({
       summary: input.summary,
       ask: input.exchange.ask,
-      answer: input.exchange.answer,
+      answer: input.exchange.bestEffort
+        ? `[Partial reply; the request was not fully completed] ${input.exchange.answer}`
+        : input.exchange.answer,
       actions: stepLog((input.exchange.steps ?? []).filter((step) => step.kind === "tool")),
     }),
     ...(input.emit ? { emit: input.emit } : {}),

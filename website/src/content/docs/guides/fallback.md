@@ -63,7 +63,10 @@ See [Lifecycle extensions](/goliath/guides/extensions/).
 
 Without one, a stalled turn still returns a best-effort answer written from the step log, with
 `bestEffort: true` on the result. The [example app](/goliath/project/example/) deliberately has no
-fallback so that escalation stays visible.
+fallback so that escalation stays visible. Nonempty best-effort replies and their tool records
+are saved to memory with `bestEffort: true` on the exchange, and shown to later model calls as
+partial replies. This retains useful evidence without declaring unfinished actions complete.
+An empty failed reply or provider refusal is not persisted through this path.
 
 ## What stays on device
 

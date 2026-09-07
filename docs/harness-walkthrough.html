@@ -1,0 +1,1891 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inside Goliath — a guide to the harness</title>
+    <style>
+      :root {
+        --paper: #f3f0e7;
+        --ink: #232b29;
+        --muted: #59665f;
+        --line: #c9cec0;
+        --green: #285b45;
+        --green-light: #e3eadf;
+        --orange: #ac482c;
+        --orange-light: #f6e5dc;
+        --card: #fcfaf4;
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        --sans: "Avenir Next", "Trebuchet MS", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.6;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      select {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      a:focus-visible {
+        outline: 3px solid var(--orange);
+        outline-offset: 4px;
+      }
+      button {
+        color: inherit;
+      }
+      a {
+        color: var(--green);
+        text-underline-offset: 4px;
+      }
+      .shell {
+        max-width: 1360px;
+        padding: 30px 48px 60px;
+        margin: auto;
+      }
+      .masthead {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--ink);
+        padding-bottom: 18px;
+        gap: 20px;
+      }
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: -0.7px;
+      }
+      .stone {
+        width: 32px;
+        height: 36px;
+        color: var(--green);
+      }
+      .edition,
+      .eyebrow,
+      .tag,
+      .section-number {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .edition {
+        color: var(--muted);
+        text-align: right;
+      }
+      .hero {
+        padding: 52px 0 36px;
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 50px;
+        align-items: end;
+      }
+      .eyebrow {
+        color: var(--orange);
+        font-weight: bold;
+        margin: 0 0 16px;
+      }
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(40px, 5.5vw, 76px);
+        font-weight: 400;
+        line-height: 1.04;
+        letter-spacing: -3px;
+        margin: 0;
+      }
+      h1 em {
+        color: var(--green);
+        font-weight: 400;
+      }
+      .intro {
+        font-size: 17px;
+        max-width: 510px;
+        margin: 0;
+      }
+      .intro strong {
+        font-weight: 700;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .boundary {
+        display: grid;
+        grid-template-columns: 1fr 40px 1fr 40px 1fr;
+        gap: 10px;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 18px 0;
+        margin-bottom: 36px;
+      }
+      .boundary p {
+        margin: 4px 0;
+        font-size: 13px;
+      }
+      .boundary b {
+        font-size: 14px;
+      }
+      .arrow {
+        text-align: center;
+        color: var(--green);
+        font-size: 24px;
+      }
+      .workbench {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(310px, 1fr);
+        border: 1px solid var(--line);
+        background: var(--card);
+      }
+      .run-panel {
+        padding: 26px;
+        border-right: 1px solid var(--line);
+      }
+      h2 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 29px;
+        line-height: 1.2;
+        font-weight: 400;
+        margin: 0 0 12px;
+        letter-spacing: -0.5px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      .section-number {
+        color: var(--orange);
+        margin-right: 12px;
+      }
+      .control-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+        margin: 0 0 18px;
+      }
+      .tag {
+        display: inline-block;
+        letter-spacing: 0.03em;
+        border: 1px solid var(--line);
+        padding: 3px 8px;
+        border-radius: 20px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .tag.model {
+        color: var(--green);
+        border-color: #779883;
+        background: var(--green-light);
+      }
+      .tag.code {
+        background: var(--paper);
+      }
+      .tag.warning {
+        color: var(--orange);
+        border-color: #cc927d;
+        background: var(--orange-light);
+      }
+      label {
+        font-size: 13px;
+        font-weight: 700;
+        display: block;
+        margin-bottom: 6px;
+      }
+      select {
+        width: 100%;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 11px 12px;
+        color: var(--ink);
+        font-weight: 600;
+      }
+      #ask {
+        border-left: 3px solid var(--green);
+        padding: 10px 14px;
+        margin: 18px 0 4px;
+        font-size: 17px;
+        font-family: Georgia, serif;
+      }
+      #scenario-note {
+        margin: 0 0 18px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .button {
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .button.primary {
+        background: var(--green);
+        border-color: var(--green);
+        color: white;
+      }
+      .button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .controls #position {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .route {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 0;
+      }
+      .route li {
+        position: relative;
+        padding: 0 0 10px 28px;
+      }
+      .route li:before {
+        content: "";
+        position: absolute;
+        top: 15px;
+        bottom: -3px;
+        left: 8px;
+        width: 1px;
+        background: var(--line);
+      }
+      .route li:last-child:before {
+        display: none;
+      }
+      .route li:after {
+        content: "";
+        position: absolute;
+        top: 15px;
+        left: 4px;
+        width: 9px;
+        height: 9px;
+        background: var(--paper);
+        border: 1px solid #7a887e;
+        border-radius: 50%;
+      }
+      .route li.current:after {
+        background: var(--orange);
+        border-color: var(--orange);
+        box-shadow: 0 0 0 4px var(--orange-light);
+      }
+      .route li.done:after {
+        background: var(--green);
+        border-color: var(--green);
+      }
+      .step-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        width: 100%;
+        border: 1px solid transparent;
+        background: transparent;
+        text-align: left;
+        padding: 9px 10px;
+        border-radius: 4px;
+      }
+      .step-button:hover {
+        background: var(--paper);
+      }
+      .current .step-button {
+        border-color: var(--line);
+        background: var(--paper);
+      }
+      .step-button strong {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .step-button small {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .inspector {
+        padding: 26px;
+        min-width: 0;
+        background: #edf0e7;
+      }
+      .inspector .eyebrow {
+        margin: 0 0 20px;
+      }
+      .inspector h2 {
+        font-size: 32px;
+        margin: 12px 0 16px;
+      }
+      #description {
+        font-size: 15px;
+        min-height: 88px;
+      }
+      .data-block {
+        margin: 22px 0;
+      }
+      .data-block h3 {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 400;
+        margin-bottom: 8px;
+      }
+      pre {
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 0;
+        background: var(--ink);
+        color: #f0f1dc;
+        padding: 16px;
+        border-radius: 4px;
+      }
+      .hooks {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.85em;
+      }
+      p code,
+      li code,
+      td code {
+        background: #e7e7da;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      .hooks code {
+        background: #dce3d5;
+        padding: 4px 7px;
+        font-size: 11px;
+        color: #355340;
+      }
+      .inspector .source {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 24px;
+      }
+      .explanation {
+        padding: 12px 14px;
+        border-left: 2px solid var(--orange);
+        background: var(--orange-light);
+        font-size: 13px;
+        color: #62341f;
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-top: 42px;
+      }
+      .section-head h2 {
+        margin-bottom: 20px;
+      }
+      .budget-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 40px;
+        border-top: 1px solid var(--line);
+        padding-top: 22px;
+      }
+      .range-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .capacity {
+        font-family: Georgia, serif;
+        font-size: 36px;
+        line-height: 1;
+        color: var(--green);
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--green);
+        margin: 24px 0 12px;
+      }
+      .ticks {
+        display: flex;
+        justify-content: space-between;
+        font: 10px var(--mono);
+        color: var(--muted);
+      }
+      .budget-chart {
+        height: 30px;
+        display: flex;
+        border: 1px solid var(--line);
+        margin: 20px 0 12px;
+        overflow: hidden;
+      }
+      .budget-chart span {
+        display: block;
+        transition: width 0.2s;
+      }
+      .budget-chart .input {
+        background: var(--green);
+      }
+      .budget-chart .output {
+        background: var(--orange);
+      }
+      .budget-chart .reserve {
+        background: #a6ad91;
+      }
+      .budget-chart .unused {
+        background: #e0e2d4;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .legend i {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        margin-right: 4px;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 24px;
+      }
+      .metric {
+        border-bottom: 1px solid var(--line);
+        padding: 12px 0;
+      }
+      .metric strong {
+        display: block;
+        font:
+          27px Georgia,
+          serif;
+      }
+      .metric small {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .memory-card {
+        border-top: 2px solid var(--green);
+        padding: 18px 0 0;
+      }
+      .memory-card h3 {
+        font-family: Georgia, serif;
+        font-size: 24px;
+        font-weight: 400;
+      }
+      .memory-card p {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .memory-card ul {
+        padding-left: 18px;
+        font-size: 13px;
+      }
+      details {
+        border-top: 1px solid var(--line);
+        padding: 15px 0;
+      }
+      summary {
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        list-style-position: outside;
+        margin-left: 18px;
+        padding-left: 5px;
+      }
+      details p {
+        font-size: 14px;
+        max-width: 900px;
+        margin: 12px 0 4px;
+      }
+      details .note {
+        font-size: 12px;
+      }
+      .issues {
+        margin-top: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .wiring {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 36px;
+        margin-top: 24px;
+      }
+      .wiring p {
+        font-size: 14px;
+      }
+      .footer {
+        margin-top: 48px;
+        border-top: 1px solid var(--ink);
+        padding-top: 18px;
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .footer p {
+        margin: 0;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      noscript {
+        display: block;
+        background: var(--orange-light);
+        padding: 18px;
+      }
+      @media (max-width: 900px) {
+        .shell {
+          padding: 22px;
+        }
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 24px;
+          padding: 35px 0;
+        }
+        .workbench {
+          grid-template-columns: 1fr;
+        }
+        .run-panel {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .budget-grid {
+          gap: 24px;
+        }
+        .memory-grid {
+          grid-template-columns: 1fr;
+        }
+        .memory-card {
+          padding-top: 12px;
+        }
+        .memory-card p {
+          max-width: 650px;
+        }
+        .wiring {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          letter-spacing: -1.5px;
+        }
+        #description {
+          min-height: 0;
+        }
+        .boundary {
+          grid-template-columns: 1fr 24px 1fr 24px 1fr;
+          gap: 4px;
+        }
+        .boundary p {
+          font-size: 11px;
+        }
+      }
+      @media (max-width: 540px) {
+        .edition {
+          font-size: 9px;
+        }
+        .budget-grid {
+          grid-template-columns: 1fr;
+        }
+        .run-panel,
+        .inspector {
+          padding: 20px;
+        }
+        .step-button .tag {
+          font-size: 9px;
+        }
+        .control-top {
+          align-items: start;
+        }
+        .control-top h2 {
+          font-size: 24px;
+        }
+        .controls {
+          flex-wrap: wrap;
+        }
+        .boundary b {
+          font-size: 12px;
+        }
+        .boundary .arrow {
+          font-size: 18px;
+        }
+        .footer {
+          display: block;
+        }
+        .footer p {
+          margin-bottom: 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *:before,
+        *:after {
+          transition: none !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        .shell {
+          padding: 0;
+          max-width: none;
+        }
+        .controls,
+        select,
+        input[type="range"],
+        .ticks,
+        .button {
+          display: none;
+        }
+        .workbench {
+          break-inside: avoid;
+        }
+        .hero {
+          padding: 20px 0;
+        }
+        .workbench,
+        .budget-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .route li {
+          padding-bottom: 0;
+        }
+        .step-button {
+          padding: 3px;
+        }
+        .tag {
+          font-size: 8px;
+        }
+        pre {
+          background: #eee;
+          color: #222;
+        }
+        .memory-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .footer {
+          margin-top: 20px;
+        }
+        a {
+          color: inherit;
+        }
+      }
+
+      .trajectory {
+        margin: 36px 0;
+        border: 1px solid var(--ink);
+        background: var(--card);
+        scroll-margin-top: 20px;
+      }
+      .trajectory-head {
+        padding: 26px;
+        border-bottom: 1px solid var(--line);
+      }
+      .trajectory-head h2 {
+        margin: 0;
+      }
+      .trajectory-head p {
+        max-width: 850px;
+      }
+      .trajectory-head select {
+        max-width: 100%;
+        padding: 10px;
+        background: var(--paper);
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .trajectory-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+      }
+      .trajectory-list {
+        list-style: none;
+        padding: 16px;
+        margin: 0;
+        counter-reset: trace;
+      }
+      .trajectory-list li {
+        counter-increment: trace;
+      }
+      .trajectory-list button {
+        display: grid;
+        grid-template-columns: 24px 84px 1fr;
+        gap: 10px;
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        padding: 14px 8px;
+        text-align: left;
+        align-items: baseline;
+      }
+      .trajectory-list button::before {
+        content: counter(trace, decimal-leading-zero);
+        color: var(--muted);
+        font: 11px var(--mono);
+      }
+      .trajectory-list button[aria-current="step"] {
+        background: var(--green-light);
+        box-shadow: inset 3px 0 var(--green);
+      }
+      .trace-kind {
+        font: 11px var(--mono);
+        color: var(--muted);
+      }
+      .trace-model .trace-kind {
+        color: var(--green);
+        font-weight: bold;
+      }
+      .trajectory-list small {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: normal;
+      }
+      .trace-detail {
+        padding: 26px;
+        background: #e3eadf66;
+        border-left: 1px solid var(--line);
+        min-width: 0;
+      }
+      .trace-detail-inner {
+        position: sticky;
+        top: 20px;
+      }
+      .trace-detail h3 {
+        font:
+          28px Georgia,
+          serif;
+        margin: 12px 0;
+      }
+      .trace-detail pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        padding: 16px;
+        background: var(--ink);
+        color: var(--card);
+        font: 12px/1.7 var(--mono);
+        border-radius: 3px;
+      }
+      .trace-summary {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--green);
+      }
+      .trace-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-top: 20px;
+      }
+      .trace-controls button {
+        padding: 9px 14px;
+        border: 1px solid var(--green);
+        background: var(--card);
+      }
+      .trace-controls button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .trace-footnote {
+        padding: 0 26px 22px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      @media (max-width: 800px) {
+        .trajectory-grid {
+          grid-template-columns: 1fr;
+        }
+        .trace-detail {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+        .trajectory-head,
+        .trace-detail {
+          padding: 20px;
+        }
+        .trajectory-list {
+          padding: 8px;
+        }
+        .trajectory-list button {
+          gap: 6px;
+          grid-template-columns: 20px 72px 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <div class="brand">
+          <svg class="stone" aria-hidden="true" viewBox="0 0 32 32" fill="none">
+            <path
+              d="M16 3.5c5.8 0 11 4.4 11 10.6 0 6.8-5.6 14.4-11 14.4S5 20.9 5 14.1C5 7.9 10.2 3.5 16 3.5Z"
+              fill="currentColor"
+            />
+            <path
+              d="M11.5 10.5c1.4-1.6 3.4-2.4 5.6-2.2"
+              stroke="#fff"
+              stroke-opacity=".55"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            /></svg
+          >Goliath
+        </div>
+        <div class="edition">Field guide / 01<br />Inside the base harness · September 2026</div>
+      </header>
+      <main>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Understand the machinery</p>
+            <h1>A small model.<br /><em>A careful loop.</em></h1>
+          </div>
+          <div>
+            <p class="intro">
+              The model proposes the next step.
+              <strong
+                >The harness validates it, checks permissions, runs your code, and decides what the
+                model sees next.</strong
+              >
+              An agent turn is several small requests with explicit boundaries.
+            </p>
+            <p class="note">
+              An interactive explanation of this checkout. The examples below are scripted
+              illustrations, not live model calls or performance measurements.
+            </p>
+          </div>
+        </section>
+        <div class="boundary" aria-label="Responsibility boundaries">
+          <div>
+            <b>Your app</b>
+            <p>Owns screens, user approval, tool functions, and storage connections.</p>
+          </div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div>
+            <b>The harness</b>
+            <p>Owns conversation queues, prompts, validation, the loop, and budgets.</p>
+          </div>
+          <div class="arrow" aria-hidden="true">⇄</div>
+          <div>
+            <b>The model</b>
+            <p>Proposes plans and arguments, writes replies, and sometimes summarizes.</p>
+          </div>
+        </div>
+        <noscript
+          >This file needs JavaScript for the step-through explorer. The memory, wiring, and failure
+          explanations below remain readable without it.</noscript
+        >
+
+        <section class="trajectory" id="trajectory" aria-labelledby="trajectory-title">
+          <div class="trajectory-head">
+            <p class="eyebrow">Start here / The call-by-call trace</p>
+            <h2 id="trajectory-title">One agent. Several separate model calls.</h2>
+            <p>
+              Read downward in time. <strong>MODEL #</strong> means we ask the model to generate
+              something. <strong>CODE</strong> and <strong>TOOL</strong> run without a model
+              generation. Planner and worker are jobs assigned to the same configured model, not
+              separate subagents.
+            </p>
+            <label for="trace-scenario">Trace a request</label>
+            <select id="trace-scenario">
+              <option value="complete">Mark Renew the passport complete</option>
+              <option value="list">List my open tasks</option>
+            </select>
+            <p class="trace-summary" id="trace-summary"></p>
+          </div>
+          <div class="trajectory-grid">
+            <ol class="trajectory-list" id="trace-rows" aria-label="Execution order"></ol>
+            <div class="trace-detail" aria-live="polite">
+              <div class="trace-detail-inner">
+                <span class="eyebrow" id="trace-actor"></span>
+                <h3 id="trace-title"></h3>
+                <p id="trace-explanation"></p>
+                <p class="eyebrow">Input / What this operation receives</p>
+                <pre id="trace-input"></pre>
+                <p class="eyebrow">Output / What it returns</p>
+                <pre id="trace-output"></pre>
+                <p id="trace-handoff"></p>
+                <div class="trace-controls">
+                  <button type="button" id="trace-back">← Back</button>
+                  <button type="button" id="trace-next">Next →</button>
+                  <span id="trace-position" class="note"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="trace-footnote">
+            Illustrated successful runs, with shortened prompt excerpts and sample outputs—not a
+            recording of a device run or the model’s private reasoning. Start with empty
+            conversation memory; approval is granted; no retries occur. Older conversations can add
+            a scribe model call. The public result.trace records lifecycle events, not every raw
+            model request; result.steps counts tools and the final answer, not model calls.
+          </p>
+        </section>
+        <section class="workbench" aria-label="Interactive turn walkthrough">
+          <div class="run-panel">
+            <div class="control-top">
+              <h2><span class="section-number">01</span>Follow one turn</h2>
+              <span class="tag">Illustration</span>
+            </div>
+            <label for="scenario">Choose a request</label>
+            <select id="scenario">
+              <option value="list">List my open tasks — normal path</option>
+              <option value="write">Complete a task — lookup and approval</option>
+              <option value="repeat">The screenshot — repeated lookup</option>
+              <option value="refusal">The screenshot — provider refusal</option>
+              <option value="invalid">Malformed plan — bounded retry</option>
+              <option value="files">Find a fact — search and read a file</option>
+            </select>
+            <blockquote id="ask"></blockquote>
+            <p id="scenario-note"></p>
+            <div class="controls">
+              <button id="previous" class="button" type="button" aria-label="Previous stage">
+                ← Back</button
+              ><button id="next" class="button primary" type="button">Next stage →</button
+              ><button id="play" class="button" type="button">Play</button
+              ><span id="position"></span>
+            </div>
+            <ol class="route" id="route" aria-label="Stages in this example"></ol>
+          </div>
+          <aside class="inspector" aria-label="Selected stage details">
+            <p class="eyebrow">Inside this stage</p>
+            <div id="actor" class="tag"></div>
+            <div aria-live="polite" aria-atomic="true">
+              <h2 id="stage-title"></h2>
+              <p id="description"></p>
+            </div>
+            <div class="data-block">
+              <h3 id="payload-title">What crosses the boundary</h3>
+              <pre id="payload"></pre>
+            </div>
+            <div class="data-block">
+              <h3>Lifecycle extension points</h3>
+              <div class="hooks" id="hooks"></div>
+            </div>
+            <p class="explanation" id="takeaway"></p>
+            <p class="source" id="source"></p>
+          </aside>
+        </section>
+        <section aria-labelledby="budget-title">
+          <div class="section-head">
+            <h2 id="budget-title">
+              <span class="section-number">02</span>Every model call has a budget
+            </h2>
+          </div>
+          <div class="budget-grid">
+            <div>
+              <div class="range-label">
+                <label for="window">Illustrative model window</label
+                ><output class="capacity" id="capacity" for="window">4,096</output>
+              </div>
+              <input
+                id="window"
+                type="range"
+                min="0"
+                max="2"
+                step="1"
+                value="0"
+                aria-valuetext="4096 tokens"
+              />
+              <div class="ticks">
+                <span>4,096</span><span>8,192</span><span>16,384 tokens</span>
+              </div>
+              <div
+                class="budget-chart"
+                role="img"
+                aria-label="Token budget for an answer call"
+                id="budget-chart"
+              >
+                <span class="input"></span><span class="output"></span><span class="reserve"></span
+                ><span class="unused"></span>
+              </div>
+              <div class="legend">
+                <span><i style="background: var(--green)"></i>Input ceiling</span
+                ><span><i style="background: var(--orange)"></i>Answer output</span
+                ><span><i style="background: #a6ad91"></i>Framing reserve</span
+                ><span><i style="background: #e0e2d4"></i>Headroom</span>
+              </div>
+              <p class="note">
+                The input ceiling includes system instructions, the prompt, and the output schema.
+                Native token counting is used when supplied; otherwise the harness estimates
+                conservatively. These are requested limits, not a promise about provider behavior.
+              </p>
+              <p class="note">
+                Changing this illustration doesn’t enlarge an Apple model: the app must report the
+                model’s actual supported window.
+              </p>
+            </div>
+            <div>
+              <div class="metrics">
+                <div class="metric">
+                  <strong id="input-cap"></strong
+                  ><small>maximum input tokens for an answer call</small>
+                </div>
+                <div class="metric">
+                  <strong>384</strong><small>requested answer output tokens</small>
+                </div>
+                <div class="metric">
+                  <strong id="result-cap"></strong><small>tokens per literal tool result</small>
+                </div>
+                <div class="metric">
+                  <strong id="retrieval-cap"></strong><small>active retrieved-content tokens</small>
+                </div>
+                <div class="metric">
+                  <strong id="summary-cap"></strong><small>rolling memory brief allowance</small>
+                </div>
+                <div class="metric">
+                  <strong>256 / 512 / 192</strong
+                  ><small>plan / arguments / scribe output caps</small>
+                </div>
+              </div>
+              <p class="note">
+                Ordinary tool summaries keep the 600-character cap. File tools opt into
+                token-budgeted content; older excerpts can leave model prompts while remaining in
+                the recorded result. Pagination cursors let the model request more.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section aria-labelledby="memory-title">
+          <div class="section-head">
+            <h2 id="memory-title">
+              <span class="section-number">03</span>Three different kinds of state
+            </h2>
+          </div>
+          <div class="memory-grid">
+            <article class="memory-card">
+              <span class="tag code">One active run</span>
+              <h3>The step log</h3>
+              <p>
+                What actually happened during this request: tool names, validated inputs, outputs,
+                approvals, skips, and failures.
+              </p>
+              <ul>
+                <li>Compressed results feed subsequent model calls.</li>
+                <li>Full JSON outputs stay available to app code.</li>
+                <li>The judge catches repetition and step exhaustion.</li>
+              </ul>
+            </article>
+            <article class="memory-card">
+              <span class="tag code">Across turns</span>
+              <h3>Conversation memory</h3>
+              <p>
+                A rolling brief and the latest three exchanges. Selected by
+                <code>conversationId</code>, separate from the screen’s full transcript.
+              </p>
+              <ul>
+                <li>The example saves it in SQLite.</li>
+                <li>A fourth exchange can trigger the scribe.</li>
+                <li>Nonempty best-effort replies are retained as partial.</li>
+                <li>Earlier tool results are reference, not fresh authorization.</li>
+              </ul>
+            </article>
+            <article class="memory-card">
+              <span class="tag code">App-controlled lifetime</span>
+              <h3>Files &amp; app data</h3>
+              <p>
+                Tools connect the model to your application. Task records, notes, documents, and UI
+                history have their own storage rules.
+              </p>
+              <ul>
+                <li><code>/docs</code>: predefined, read-only files.</li>
+                <li><code>/notes</code>: persistent notes shared by conversations.</li>
+                <li>Other paths: per-conversation scratch in this example.</li>
+                <li>Demo tasks and scratch reset on launch.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+        <section aria-labelledby="failures-title">
+          <div class="section-head">
+            <h2 id="failures-title">
+              <span class="section-number">04</span>What went wrong in the screenshot?
+            </h2>
+          </div>
+          <div class="issues">
+            <details open>
+              <summary>The lookup worked; the planner kept asking for it.</summary>
+              <p>
+                The first <code>listTasks</code> call returned the tasks. An identical second call
+                reused the result; the third selection hit <code>repeated-tool-call</code>. The
+                harness then asked for a best-effort answer, which is why useful task names appeared
+                under a warning.
+              </p>
+              <p>
+                <strong>What is fixed here:</strong> that partial reply and its tool evidence now
+                survive into the next turn, explicitly marked incomplete. The UI says “Stopped a
+                repeated step.” The existing duplicate guard still prevents re-execution; we cannot
+                promise the model will stop proposing a bad plan.
+              </p>
+            </details>
+            <details open>
+              <summary>The follow-up was refused before a tool ran.</summary>
+              <p>
+                The provider reported “Detected content likely to be unsafe” during planning. The
+                old classifier treated that wording as a generic model error, and the app
+                substituted “Try asking for one smaller step.” Neither the list nor the completion
+                tool ran in that turn.
+              </p>
+              <p>
+                <strong>What is fixed here:</strong> the native error is classified as a refusal,
+                including wrapped causes. The app says “Apple Intelligence declined this request. No
+                action ran.” It doesn’t silently retry the refusal or route it to the cloud.
+              </p>
+            </details>
+            <details>
+              <summary>Valid JSON is only one part of a correct decision.</summary>
+              <p>
+                A plan can be well-formed yet choose the wrong tool. A search argument can pass its
+                string schema yet contain the wrong query. Schema validation cannot establish that
+                the model understood the user.
+              </p>
+              <p>
+                <strong>What is fixed here:</strong> a native “Failed to deserialize a Generable
+                type from model output” error follows the existing bounded validation path: one plan
+                retry, no execution of invalid arguments, and at most one structured-answer retry.
+                This doesn’t cure semantic errors or a provider call that never resolves.
+              </p>
+            </details>
+            <details>
+              <summary>“On-device” describes where it ran, not whether it succeeded.</summary>
+              <p>
+                The old footer used a checkmark even when zero steps completed and no answer was
+                returned. Now an unfinished outcome uses a warning icon and an “Unfinished” label,
+                with a cause-specific explanation.
+              </p>
+              <p>
+                If a write already ran before a later failure, the message warns that earlier
+                actions may have completed. A retry must never be presented as though the earlier
+                action definitely did nothing.
+              </p>
+            </details>
+            <details>
+              <summary>What would make the live model more reliable?</summary>
+              <p>
+                Keep a repeatable device evaluation set for lookup, follow-up, approval, refusal,
+                pagination, and malformed output. Inspect generated plans and arguments, tighten
+                descriptions and examples against those failures, and measure each change. A model
+                timeout needs explicit cancellation behavior and must not expire while a person is
+                deciding an approval.
+              </p>
+              <p class="note">
+                Scripted tests verify the harness’s decisions. Direct simulator tool checks verify
+                native storage. Real model-driven runs are still needed to measure whether the model
+                chooses useful actions.
+              </p>
+            </details>
+          </div>
+        </section>
+        <section aria-labelledby="wiring-title">
+          <div class="section-head">
+            <h2 id="wiring-title"><span class="section-number">05</span>Where the code fits</h2>
+          </div>
+          <div class="wiring">
+            <pre>
+// Base harness
+const agent = createAgent({
+  model: () =&gt; apple(),
+  tools: { listTasks, completeTask },
+  memory: storage.memory,
+  confirm: showApproval,
+});
+
+await agent.run("List my open tasks.", {
+  conversationId: "travel",
+});</pre>
+            <div>
+              <h3><code>agent.run()</code> is the base API.</h3>
+              <p>
+                The example’s <code>runtime.ask()</code> wraps it with cancellation and approval
+                callbacks. <code>useConversations()</code> connects that runtime to the Zustand
+                conversation store. Screens render state; they don’t run a second agent loop.
+              </p>
+              <p>
+                One agent can serve many conversation IDs. Runs within an ID queue in order;
+                different IDs can run concurrently. A model factory can create a fresh model/session
+                for each generation. Goliath carries the context between those calls.
+              </p>
+              <p class="note">
+                Hooks can adjust each phase. They don’t grant a model direct access to your device
+                or silently authorize writes.
+              </p>
+            </div>
+          </div>
+          <details style="margin-top: 24px">
+            <summary>Source map: open these files in your editor</summary>
+            <p>
+              <code>src/create-agent.ts</code> — configuration and conversation queues<br /><code
+                >src/run-turn.ts</code
+              >
+              — lifecycle, approval, execution, and recovery<br /><code>src/conductor.ts</code> —
+              plan generation and validation<br /><code>src/worker.ts</code> — argument and answer
+              generation<br /><code>src/judge.ts</code> — deterministic stall checks<br /><code
+                >src/budget.ts</code
+              >
+              and <code>src/tool-output.ts</code> — token limits and active retrieval<br /><code
+                >src/scribe.ts</code
+              >
+              — compacted memory<br /><code>src/filesystem/</code> — storage adapters and file
+              tools<br /><code>example/src/agents/goliath/present-result.ts</code> — truthful UI
+              outcome messages
+            </p>
+          </details>
+        </section>
+      </main>
+      <footer class="footer">
+        <p>Goliath / An agent harness for small, on-device models.</p>
+        <p>Self-contained HTML · Works offline · No model calls, tracking, or external assets</p>
+      </footer>
+    </div>
+    <script>
+      "use strict";
+
+      // Illustrative operations mirror conductor.ts, worker.ts and run-turn.ts.
+      const traceRow = (kind, title, explanation, input, output, handoff) => ({
+        kind,
+        title,
+        explanation,
+        input,
+        output,
+        handoff,
+      });
+      const traceAsk = {
+        complete: "Mark Renew the passport complete.",
+        list: "List my open tasks.",
+      };
+      const tracePlan = (tool, brief, evidence) =>
+        traceRow(
+          "model",
+          "Planner → " + tool,
+          "A fresh generation chooses one next step. It does not execute the tool or write the final reply.",
+          "Role: choose the next step\nAsk: {ask}\nTools: names, descriptions, prerequisites\nMemory: empty in this example\nStep log: " +
+            evidence,
+          JSON.stringify(
+            tool === "answer" ? { kind: "answer", brief } : { kind: "tool", tool, brief },
+            null,
+            2,
+          ),
+          "The harness validates this plan, then dispatches the chosen operation.",
+        );
+      const traceStart = traceRow(
+        "code",
+        "App → agent.run()",
+        "The app submits one request. The harness enters this conversation’s queue, runs hooks, and loads its memory.",
+        'agent.run("{ask}", { conversationId: "travel" })',
+        'memory: { summary: "", recent: [] }\nsteps: []',
+        "The harness builds the first planner prompt. No model has been called yet.",
+      );
+      const traceList = traceRow(
+        "tool",
+        "listTasks.execute({})",
+        "An empty argument schema skips argument generation. Policy checks pass and JavaScript reads the task store.",
+        "{}",
+        '[{ id: 2, title: "Renew the passport", done: false }]',
+        "Save the full output in a StepRecord; a bounded text version goes into the next planner prompt.",
+      );
+      const traceSave = traceRow(
+        "code",
+        "Save exchange → return RunResult",
+        "The harness saves the reply and tool records to conversation memory, runs finish hooks, and returns to the app.",
+        "The original ask + final answer + recorded steps",
+        '{ text: finalAnswer, handledBy: "device", steps, trace }',
+        "This turn is finished. No scribe generation is needed for this first exchange.",
+      );
+      const traceReply = (text, evidence) =>
+        traceRow(
+          "model",
+          "Answer worker → final text",
+          "Another generation writes the user-facing reply. Choosing to answer and writing the answer are separate calls.",
+          "Role: write the reply from recorded evidence\nAsk: {ask}\nMemory: empty\nStep log: " +
+            evidence,
+          text,
+          "The harness records the answer step and emits the answer event.",
+        );
+      const traceRuns = {
+        list: [
+          traceStart,
+          tracePlan("listTasks", "List open tasks.", "[]"),
+          traceList,
+          tracePlan(
+            "answer",
+            "Report the open tasks.",
+            "listTasks → id: 2, title: Renew the passport (open)",
+          ),
+          traceReply(
+            "Your open task is Renew the passport.",
+            "listTasks → id: 2, title: Renew the passport (open)",
+          ),
+          traceSave,
+        ],
+        complete: [
+          traceStart,
+          tracePlan("listTasks", "Find the task to complete.", "[]"),
+          traceList,
+          tracePlan(
+            "completeTask",
+            "Complete Renew the passport.",
+            "listTasks → id: 2, title: Renew the passport (open)",
+          ),
+          traceRow(
+            "model",
+            "Argument worker → tool input",
+            "This tool needs arguments, so the harness makes a separate generation using its schema and prerequisite evidence.",
+            "Role: prepare completeTask arguments\nSchema: { id: number, missing?: string }\nAsk: {ask}\nPrerequisite result: id: 2, title: Renew the passport (open)",
+            '{ "id": 2 }',
+            "The model selects the listed ID. Application code checks that this ID appeared in the lookup before allowing the write.",
+          ),
+          traceRow(
+            "code",
+            "Check listed ID → approval",
+            "resolveInput checks that the selected ID appears in this turn’s recorded lookup. Unknown IDs are rejected before approval or execution.",
+            '{ id: 2 }\nFull recorded lookup: [{ id: 2, title: "Renew the passport", done: false }]',
+            "{ id: 2 }\nconfirm(...) → true",
+            "Approval happens in the app. There is no model call while waiting for the person.",
+          ),
+          traceRow(
+            "tool",
+            "completeTask.execute(...)",
+            "JavaScript updates the task store. This is where the task actually changes.",
+            "{ id: 2 }",
+            '{ id: 2, title: "Renew the passport", done: true }',
+            "Record the outcome in the step log. The next planner prompt now includes both tool results.",
+          ),
+          tracePlan(
+            "answer",
+            "Report the completed task.",
+            "listTasks → found task; completeTask → completed",
+          ),
+          traceReply(
+            "Marked Renew the passport complete.",
+            "listTasks → found task; completeTask → completed",
+          ),
+          traceSave,
+        ],
+      };
+      let traceKey = "complete",
+        traceIndex = 0;
+      function renderTrace() {
+        const rows = traceRuns[traceKey],
+          row = rows[traceIndex];
+        const calls = rows.filter((r) => r.kind === "model").length;
+        const tools = rows.filter((r) => r.kind === "tool").length;
+        document.getElementById("trace-summary").textContent =
+          `1 user request · ${calls} model calls · ${tools} tool executions · ${tools + 1} recorded steps · 0 subagents`;
+        const container = document.getElementById("trace-rows");
+        container.replaceChildren();
+        let call = 0;
+        rows.forEach((r, index) => {
+          const label = r.kind === "model" ? "MODEL #" + ++call : r.kind.toUpperCase();
+          const li = document.createElement("li"),
+            b = document.createElement("button");
+          b.type = "button";
+          b.className = "trace-" + r.kind;
+          b.setAttribute("aria-current", index === traceIndex ? "step" : "false");
+          const badge = document.createElement("span"),
+            title = document.createElement("strong");
+          badge.className = "trace-kind";
+          badge.textContent = label;
+          title.textContent = r.title;
+          b.append(badge, title);
+          b.addEventListener("click", () => {
+            traceIndex = index;
+            renderTrace();
+            container.children[index].firstChild.focus({ preventScroll: true });
+          });
+          li.append(b);
+          container.append(li);
+          if (index === traceIndex) document.getElementById("trace-actor").textContent = label;
+        });
+        for (const [id, value] of Object.entries({
+          title: row.title,
+          explanation: row.explanation,
+          input: row.input.replace("{ask}", traceAsk[traceKey]),
+          output: row.output,
+          handoff: row.handoff,
+        })) {
+          document.getElementById("trace-" + id).textContent = value;
+        }
+        document.getElementById("trace-position").textContent =
+          `${traceIndex + 1} / ${rows.length}`;
+        document.getElementById("trace-back").disabled = traceIndex === 0;
+        document.getElementById("trace-next").disabled = traceIndex === rows.length - 1;
+      }
+      document.getElementById("trace-scenario").addEventListener("change", (e) => {
+        traceKey = e.target.value;
+        traceIndex = 0;
+        renderTrace();
+      });
+      document.getElementById("trace-back").addEventListener("click", () => {
+        traceIndex = Math.max(0, traceIndex - 1);
+        renderTrace();
+      });
+      document.getElementById("trace-next").addEventListener("click", () => {
+        traceIndex = Math.min(traceRuns[traceKey].length - 1, traceIndex + 1);
+        renderTrace();
+      });
+      renderTrace();
+
+      const stage = (title, actor, description, payload, hooks, takeaway, source) => ({
+        title,
+        actor,
+        description,
+        payload,
+        hooks,
+        takeaway,
+        source,
+      });
+      const recall = stage(
+        "Load this conversation",
+        "code",
+        "The harness enters the conversation’s queue, applies beforeRun, loads memory, and builds a small reference context. It doesn’t ask the model to remember by itself.",
+        'conversationId: "travel"\nmemory: { summary: "", recent: [] }\nsteps: []',
+        ["beforeRun", "afterRecall"],
+        "The app’s full chat history and the model’s compact memory are separate stores.",
+        "src/create-agent.ts · src/run-turn.ts",
+      );
+      const planList = stage(
+        "Choose a task lookup",
+        "model",
+        "The conductor receives the current ask, available tool descriptions, memory, and the step log. It proposes one next step using a flat JSON schema.",
+        '{ "kind": "tool",\n  "tool": "listTasks",\n  "brief": "List the open tasks." }',
+        ["beforePlan", "afterPlan"],
+        "This is a model suggestion. Validation and application policy still stand between it and execution.",
+        "src/conductor.ts",
+      );
+      const listTool = stage(
+        "Run listTasks in the app",
+        "code",
+        "listTasks takes no arguments, so it skips the worker’s argument-generation call. The harness checks policy and executes the actual JavaScript function.",
+        'listTasks.execute({}, context)\n→ [{ id: 2, title: "Renew the passport", done: false }]\n\nmodel result: {"id":2,"title":"Renew the passport"}',
+        ["beforeTool", "afterTool"],
+        "The data comes from your tool implementation. The model does not create task records by describing them.",
+        "src/run-turn.ts · example/src/agents/goliath/tools/tasks",
+      );
+      const judge = stage(
+        "Check progress and budget",
+        "code",
+        "The judge checks step exhaustion, failed tools, and repeated calls. Tool results are bounded before they are shown to the model on the next loop.",
+        "maxSteps: 5 (default)\nordinary result cap: 600 characters\nfailed tools in a row: 2 → stop/escalate",
+        ["beforePlan"],
+        "The judge is ordinary code. It has no confidence score and cannot tell whether every valid argument is meaningful.",
+        "src/judge.ts · src/tool-output.ts",
+      );
+      const planAnswer = stage(
+        "Choose to answer",
+        "model",
+        "The conductor sees the returned task evidence and proposes a final reply. An answer plan is not yet the user-facing answer.",
+        '{ "kind": "answer",\n  "brief": "Report the open tasks." }',
+        ["beforePlan", "afterPlan"],
+        "There is one model call for planning and another for writing the final answer.",
+        "src/conductor.ts",
+      );
+      const answer = stage(
+        "Write the reply",
+        "model",
+        "The answer worker uses the ask, memory, and recorded results. It gets a short output allowance and is instructed to treat tool results as data.",
+        'text: "Your open task is Renew the passport."\nhandledBy: "device"\nrequested answer output: 384 tokens',
+        ["afterAnswer"],
+        "A fluent sentence alone is not proof that an action ran. The step records provide that evidence.",
+        "src/worker.ts · src/prompts.ts",
+      );
+      const remember = stage(
+        "Save memory and finish",
+        "code",
+        "The exchange and tool evidence are appended to memory. Once an older exchange falls outside the latest three, the scribe may make a separate model call to update the rolling brief.",
+        "memory: { summary, recent: lastThreeExchanges }\nresult: { text, handledBy, steps, trace }\n\nscribe output cap, when used: 192 tokens",
+        ["beforeRemember", "onFinish"],
+        "Most turns need no scribe call. onFinish handles cleanup for completed, failed, stopped, and cancelled runs.",
+        "src/scribe.ts · src/run-turn.ts",
+      );
+      const scenarios = {
+        list: {
+          ask: "List my open tasks.",
+          note: "Normal path · two planner calls, no argument-generation call for an empty schema.",
+          steps: [recall, planList, listTool, judge, planAnswer, answer, remember],
+        },
+        write: {
+          ask: "Can you mark Renew the passport as complete?",
+          note: "A fresh lookup satisfies completeTask’s prerequisite in this turn.",
+          steps: [
+            recall,
+            planList,
+            listTool,
+            stage(
+              "Choose the completion tool",
+              "model",
+              "The model selects completeTask. Its requires rule says listTasks must already have succeeded during this turn. If it did not, the harness stops; it doesn’t run the prerequisite automatically.",
+              '{ "kind": "tool", "tool": "completeTask",\n  "brief": "Complete Renew the passport." }',
+              ["beforePlan", "afterPlan"],
+              "A prior turn’s task list is useful reference, but does not satisfy this turn’s prerequisite check.",
+              "src/run-turn.ts · src/types.ts",
+            ),
+            stage(
+              "Prepare and validate the ID",
+              "model",
+              "The worker selects an ID from the prerequisite output. Application resolveInput code checks that the ID appeared in this turn’s task lookup before confirmation or execution.",
+              "worker: { id: 2 }\nresolveInput → verify ID 2 was listed → { id: 2 }",
+              ["beforeTool"],
+              "The model supplies the ID; code rejects IDs that were not listed. Duplicate titles no longer prevent selecting one exact task.",
+              "src/worker.ts · example/src/agents/goliath/tools/tasks/complete-task.ts",
+            ),
+            stage(
+              "Ask the person, then write",
+              "code",
+              "Because the tool writes, the harness calls confirm with the validated, resolved input. Only an approval lets execute run. This example illustrates approval; a decline is recorded as a skipped step.",
+              'confirm({ tool: "completeTask", input: { id: 2 } })\n→ approved\n→ completeTask.execute(...)',
+              ["afterTool"],
+              "Approval happens outside a model generation. Repeated writes are blocked rather than silently executed again.",
+              "src/run-turn.ts",
+            ),
+            planAnswer,
+            stage(
+              "Report the recorded outcome",
+              "model",
+              "The answer worker can now use the recorded completion result. A cancelled or failed tool must not be described as a successful completion.",
+              'text: "Marked Renew the passport complete."\nsteps include the completed write',
+              ["afterAnswer"],
+              "If the model fails after the write, the write can still have happened. The UI must preserve that distinction.",
+              "src/worker.ts",
+            ),
+            remember,
+          ],
+        },
+        repeat: {
+          ask: "List my open tasks.",
+          note: "Matches the screenshot’s repeated-call path; memory and UI reflect the fixes in this branch.",
+          steps: [
+            recall,
+            planList,
+            listTool,
+            stage(
+              "The model asks for the same read",
+              "model",
+              "The planner selects listTasks with the same empty arguments. The harness reuses the successful read once, adding a cached record without executing the tool again.",
+              'step 1: listTasks({}) → task data\nstep 2: listTasks({}) → "same as step 1"\n        cached: true',
+              ["beforePlan", "afterPlan", "beforeTool", "afterTool"],
+              "Caching prevents a redundant read, but the model can still propose another repeat.",
+              "src/run-turn.ts",
+            ),
+            stage(
+              "Stop the repeated loop",
+              "code",
+              "The third identical selection triggers repeated-tool-call. There is no cloud fallback configured in the example, so the harness attempts a best-effort answer from the evidence already collected.",
+              'trace: { type: "escalate",\n         reason: "repeated-tool-call" }\nactual listTasks executions: 1',
+              [],
+              "The loop is stopped deliberately. This does not prove the original request was fully completed.",
+              "src/judge.ts · src/run-turn.ts",
+            ),
+            stage(
+              "Return a partial reply",
+              "model",
+              "The reply can accurately list the tasks even though planning stalled. The UI now gives the actual reason instead of a vague warning.",
+              'text: "Your open task is Renew the passport."\nbestEffort: true\nUI: "Stopped a repeated step"',
+              ["afterAnswer"],
+              "A partial result can contain useful facts. Keep those facts without presenting the whole turn as a success.",
+              "src/worker.ts · example/src/agents/goliath/present-result.ts",
+            ),
+            stage(
+              "Retain the lookup for the next turn",
+              "code",
+              "The old path skipped memory persistence. The new path saves the nonempty reply and its tool records, with bestEffort: true on the exchange.",
+              'recent[0]: {\n  answer: "Your open task is Renew the passport.",\n  bestEffort: true, steps: [...]\n}\nnext prompt: "[Partial reply; the request was not fully completed]"',
+              ["beforeRemember", "onFinish"],
+              "The next turn can refer to the task. It must still satisfy fresh prerequisites and confirmation before writing.",
+              "src/context.ts · src/scribe.ts · src/run-turn.ts",
+            ),
+          ],
+        },
+        refusal: {
+          ask: "Can you mark Renew the passport as complete?",
+          note: "Matches the screenshot’s provider refusal before any tool execution.",
+          steps: [
+            recall,
+            stage(
+              "The provider declines planning",
+              "model",
+              "Instead of a plan, the provider rejects generation with the native message observed in the log. This happens before argument generation, confirmation, or tool execution.",
+              "Error: Detected content likely to be unsafe",
+              ["beforePlan"],
+              "This is a provider refusal. It is not evidence that the task request was too large.",
+              "src/conductor.ts",
+            ),
+            stage(
+              "Classify the refusal and stop",
+              "code",
+              "The harness recognizes the native wording, including wrapped error causes. It records guardrail, does not retry the refusal, and does not call a cloud fallback.",
+              'trace: { type: "escalate", reason: "guardrail" }\nsteps: []\ntext: ""',
+              ["onFinish"],
+              "A refusal does not increment the generic model-error count used for session fallback.",
+              "src/model-errors.ts · src/create-agent.ts",
+            ),
+            stage(
+              "Show what actually happened",
+              "code",
+              "The app derives its message and footer from the outcome. Older saved results also use the presentation helper when rendered.",
+              "Apple Intelligence declined this request.\nNo action ran.\n\n⚠ On-device · Unfinished · 0 steps",
+              [],
+              "The harness cannot guarantee that a provider will accept a benign request. It can report the refusal honestly.",
+              "example/src/agents/goliath/present-result.ts",
+            ),
+          ],
+        },
+        invalid: {
+          ask: "List my open tasks.",
+          note: "A native decoding error uses the existing bounded plan-validation retry.",
+          steps: [
+            recall,
+            stage(
+              "A plan cannot be decoded",
+              "model",
+              "The provider reports a malformed Generable output instead of a usable plan. The new classifier recognizes this specific failure; arbitrary network and provider errors are not treated as validation errors.",
+              "Error: Failed to deserialize a Generable type\nfrom model output",
+              ["beforePlan"],
+              "No tool is selected or executed from malformed output.",
+              "src/model-errors.ts",
+            ),
+            stage(
+              "Ask for one corrected plan",
+              "code",
+              "The harness retries planning with a short schema correction. There is one plan-validation retry per turn, with no tool execution between the invalid response and its retry.",
+              'retryHint: "Your last reply was not valid.\nReply with JSON fields kind, tool, brief..."',
+              ["beforePlan"],
+              "If the retry also fails, the turn escalates. Retrying generation is different from replaying a tool or a write.",
+              "src/conductor.ts · src/run-turn.ts",
+            ),
+            planList,
+            listTool,
+            planAnswer,
+            answer,
+            remember,
+          ],
+        },
+        files: {
+          ask: "Find the greenhouse access code in /docs.",
+          note: "Illustrative correct tool choices; the live model may still produce a poor query.",
+          steps: [
+            recall,
+            stage(
+              "Plan a literal search",
+              "model",
+              "The conductor selects grep. The worker fills its flat schema: pattern is the text to find, while path is the directory to search.",
+              'plan: { kind: "tool", tool: "grep" }\narguments: { pattern: "greenhouse", path: "/docs" }',
+              ["beforePlan", "afterPlan"],
+              "A schema can validate these fields but cannot guarantee that the chosen search term is useful.",
+              "src/conductor.ts · src/worker.ts",
+            ),
+            stage(
+              "Search the routed backend",
+              "code",
+              "The filesystem router sends /docs to the static backend. grep scans bounded file content and returns a matching line, its revision, and a continuation cursor if more work remains.",
+              '{ path: "/docs/garden.md", line: 45,\n  excerpt: "The greenhouse access code is BLUEBELL.",\n  revision: "opaque-version" }',
+              ["beforeTool", "afterTool"],
+              "glob discovers paths; grep searches literal contents. Neither runs a shell command.",
+              "src/filesystem/backends/composite.ts · src/filesystem/search.ts",
+            ),
+            stage(
+              "Read the relevant excerpt",
+              "model",
+              "The next plan selects readFile and its argument worker converts reported line 45 to zero-based offset 44. The actual read is app code, and may return fewer lines to stay within its token budget.",
+              'arguments: { path: "/docs/garden.md", offset: 44, limit: 1 }\nresult: { line: 45, content: "...BLUEBELL.",\n          revision: "opaque-version", nextCursor: null }',
+              ["beforePlan", "afterPlan", "beforeTool", "afterTool"],
+              "For longer reads, copy nextCursor unchanged. A file changed during pagination requires a fresh read.",
+              "src/filesystem/read.ts",
+            ),
+            stage(
+              "Answer from the retrieved text",
+              "model",
+              "The answer worker gets bounded excerpts. Full tool outputs remain available to the app, but are not automatically injected into the prompt.",
+              'text: "The greenhouse access code is BLUEBELL."\n\nNo file was written.',
+              ["afterAnswer"],
+              "The model still needs to choose a useful query. The backend and token budget cannot solve that decision for it.",
+              "src/worker.ts · src/tool-output.ts",
+            ),
+            remember,
+          ],
+        },
+      };
+      let scenarioKey = "list",
+        selected = 0,
+        timer = null;
+      const $ = (id) => document.getElementById(id);
+      function stop() {
+        if (timer !== null) clearInterval(timer);
+        timer = null;
+        $("play").textContent = "Play";
+        $("play").setAttribute("aria-pressed", "false");
+      }
+      function render() {
+        const s = scenarios[scenarioKey],
+          item = s.steps[selected];
+        $("ask").textContent = s.ask;
+        $("scenario-note").textContent = s.note;
+        $("position").textContent = selected + 1 + " / " + s.steps.length;
+        $("previous").disabled = selected === 0;
+        $("next").disabled = selected === s.steps.length - 1;
+        $("actor").textContent =
+          item.actor === "model" ? "Model generation" : "Harness / application code";
+        $("actor").className = "tag " + item.actor;
+        $("stage-title").textContent = item.title;
+        $("description").textContent = item.description;
+        $("payload").textContent = item.payload;
+        $("takeaway").textContent = item.takeaway;
+        $("source").textContent = "Source: " + item.source;
+        $("hooks").replaceChildren();
+        if (!item.hooks.length) {
+          const small = document.createElement("span");
+          small.className = "note";
+          small.textContent = "No additional hook at this point";
+          $("hooks").append(small);
+        }
+        item.hooks.forEach((name) => {
+          const el = document.createElement("code");
+          el.textContent = name;
+          $("hooks").append(el);
+        });
+        $("route").replaceChildren();
+        s.steps.forEach((step, i) => {
+          const li = document.createElement("li");
+          li.className = i === selected ? "current" : i < selected ? "done" : "";
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "step-button";
+          b.setAttribute("aria-current", i === selected ? "step" : "false");
+          b.setAttribute("aria-label", "Stage " + (i + 1) + ": " + step.title);
+          const label = document.createElement("span"),
+            strong = document.createElement("strong"),
+            small = document.createElement("small");
+          strong.textContent = step.title;
+          small.textContent =
+            step.actor === "model" ? "A model supplies output" : "Code decides or executes";
+          label.append(strong, small);
+          const tag = document.createElement("span");
+          tag.className = "tag " + step.actor;
+          tag.textContent = step.actor === "model" ? "Model" : "Code";
+          b.append(label, tag);
+          b.addEventListener("click", () => {
+            stop();
+            selected = i;
+            render();
+            $("route").children[i].querySelector("button").focus();
+          });
+          li.append(b);
+          $("route").append(li);
+        });
+        if (selected === s.steps.length - 1) stop();
+      }
+      $("scenario").addEventListener("change", (e) => {
+        stop();
+        scenarioKey = e.target.value;
+        selected = 0;
+        render();
+      });
+      $("previous").addEventListener("click", () => {
+        stop();
+        selected = Math.max(0, selected - 1);
+        render();
+      });
+      $("next").addEventListener("click", () => {
+        stop();
+        selected = Math.min(scenarios[scenarioKey].steps.length - 1, selected + 1);
+        render();
+      });
+      $("play").setAttribute("aria-pressed", "false");
+      $("play").addEventListener("click", () => {
+        if (timer !== null) {
+          stop();
+          return;
+        }
+        if (selected === scenarios[scenarioKey].steps.length - 1) {
+          selected = 0;
+          render();
+        }
+        $("play").textContent = "Pause";
+        $("play").setAttribute("aria-pressed", "true");
+        timer = setInterval(() => {
+          selected++;
+          render();
+        }, 2400);
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) stop();
+      });
+      function updateBudget() {
+        const w = [4096, 8192, 16384][Number($("window").value)],
+          output = 384,
+          reserve = Math.max(128, Math.ceil(w * 0.1)),
+          input = Math.min(Math.floor(w * 0.7), w - output - reserve);
+        const fmt = (n) => n.toLocaleString("en-US");
+        $("capacity").textContent = fmt(w);
+        $("window").setAttribute("aria-valuetext", fmt(w) + " tokens");
+        $("input-cap").textContent = fmt(input);
+        $("result-cap").textContent = fmt(Math.min(800, Math.floor(w / 8)));
+        $("retrieval-cap").textContent = fmt(Math.min(2000, Math.floor(w / 4)));
+        $("summary-cap").textContent = fmt(Math.floor(w / 8));
+        const chart = $("budget-chart");
+        [input, output, reserve, w - input - output - reserve].forEach(
+          (v, i) => (chart.children[i].style.width = (v / w) * 100 + "%"),
+        );
+        chart.setAttribute(
+          "aria-label",
+          "Answer call: input ceiling " +
+            input +
+            ", output cap " +
+            output +
+            ", framing reserve " +
+            reserve +
+            ", total window " +
+            w +
+            " tokens",
+        );
+      }
+      $("window").addEventListener("input", updateBudget);
+      render();
+      updateBudget();
+    </script>
+  </body>
+</html>

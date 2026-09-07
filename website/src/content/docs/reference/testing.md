@@ -15,8 +15,14 @@ A language model that reads from a script. Each call consumes the next reply. Ru
 
 ```ts
 type ScriptedReply =
-  { text: string } | { json: unknown } | { toolCall: { name: string; input: unknown } };
+  | { text: string }
+  | { json: unknown }
+  | { error: Error }
+  | { toolCall: { name: string; input: unknown } };
 ```
+
+`{ error: new Error("...") }` throws a scripted provider failure while recording the call,
+so tests can verify recovery without replacing the model implementation.
 
 The returned model adds two members:
 
