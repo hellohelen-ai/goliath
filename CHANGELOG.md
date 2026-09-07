@@ -14,6 +14,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
   context-window tracking, and fallback counts; existing calls use a separate default conversation.
 - Memory factories for persistent history per conversation, per-run approval callbacks, and
   `isSessionFallback(conversationId)`; hooks and tools receive conversation IDs outside prompts.
+- Local SQLite persistence in the example: conversations, drafts, transcripts, approval decisions,
+  and compacted agent memory survive restarts, with interrupted requests marked for explicit retry.
 
 ### Changed
 

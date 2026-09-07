@@ -41,12 +41,21 @@ Metro loads the local harness source directly, so edits to `src/` and `example/`
   they prompt. The parameters are flat, which is what a 3B model fills in reliably.
 - `src/screens/home/home-screen.tsx`: composes focused inbox, chat, and sheet components.
 - `src/stores/app-store.ts`: Zustand state for conversations, drafts, navigation, and search.
-  State is held in memory for the current app session.
+- `src/storage/`: local SQLite persistence for conversations, messages, and agent memory;
+  restores chat state before the inbox opens and saves subsequent conversation changes.
 - `src/hooks/`: navigation, search, Zustand subscriptions, and input/scrolling.
 - `src/agents/goliath/tools/index.ts`: the catalog for the agent’s tools and suggested requests.
 
 One agent serves every conversation, with Goliath managing isolated memory and queues by
 `conversationId`; demo tasks are shared across conversations. Zustand holds the UI state.
+Conversations, drafts, replies, and the agent's compacted context survive app restarts. Full
+chat history is stored separately from compacted memory. Demo tasks reset each app session.
+
+Unfinished requests reopen as **interrupted**, with unanswered approvals cancelled. **Edit and retry**
+puts the original request in the composer for review; no tool runs automatically on restart.
+Previously approved steps may already have completed. Failed conversation writes show a retry
+screen and retain unsaved changes in memory. Rebuild the development client after installing
+the `expo-sqlite` native dependency.
 
 There is deliberately **no** `fallback`. The example is about what the phone finishes on its own;
 a cloud fallback would hide the moments when it cannot.
