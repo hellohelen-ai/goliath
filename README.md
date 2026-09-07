@@ -419,3 +419,8 @@ and [API reference](https://hellohelen-ai.github.io/goliath/reference/filesystem
 For a step-by-step visual explanation, open [the standalone harness walkthrough](docs/harness-walkthrough.html)
 in a browser. It works offline and includes the normal, approval, repeated-call, refusal,
 malformed-plan, and file-retrieval paths.
+
+To start your own Expo app from the example, run `bun run starter:pack /tmp/goliath-starter`
+from a checkout, then pass the printed tarball path to `bun create expo my-app --template <path>`.
+The [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) covers customization,
+updates, and testing the packaged SDK outside this repository.

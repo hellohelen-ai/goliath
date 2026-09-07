@@ -48,6 +48,11 @@ Open the PR against `main`. CI has to be green. If the change is user-visible, a
 
 Maintainers only.
 
+SDK and example changes also run `bun run starter:check <artifact-directory>` in CI: the check
+creates an Expo app outside the checkout and tests it against an SDK tarball. Keep the example
+as the source; edit the export mapping and starter README in `scripts/starter/` when its layout
+changes. The publish workflow attaches the generated template to each new GitHub Release.
+
 Before cutting anything, run the **release-preflight** workflow from the Actions tab. It builds
 the exact tarball a release would push, installs those bytes into a clean project, and uploads
 the artifact — so you can try the real thing before a version number exists. Nothing it does is

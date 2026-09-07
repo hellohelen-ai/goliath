@@ -125,6 +125,14 @@ agent. They also cover isolated context, interrupted approvals, failed writes, a
 There is deliberately **no** `fallback` configured. This example is about what the phone finishes
 on its own; adding a cloud fallback would hide the moments when it cannot.
 
+## Make your own app
+
+From the repository root, run `bun run starter:pack /tmp/goliath-starter` and pass the
+printed tarball path to `bun create expo my-app --template <tarball-path>`. The exported app
+uses the published SDK, contains its own assets, and retains the native context module.
+See the [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) for setup,
+customization, and testing SDK changes against the packaged starter.
+
 ## Using your local checkout
 
 The package dependency links to the parent checkout. Metro loads `../src/index.ts` directly
@@ -138,7 +146,7 @@ root first; the package's type declarations are generated in `dist/`.
 the library before checking the example.
 
 `completeTask` demonstrates a structured handoff: it requires a successful `listTasks`, then
-resolves the selected title to an exact saved ID before asking for confirmation.
+validates the selected ID against that lookup before asking for confirmation.
 
 ## Try virtual files
 

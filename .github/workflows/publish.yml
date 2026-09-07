@@ -47,6 +47,9 @@ jobs:
             exit 1
           fi
 
+      - name: Pack the starter before publishing
+        run: bun run starter:pack "$RUNNER_TEMP/starter"
+
       # No NODE_AUTH_TOKEN: the npm CLI picks up the OIDC token itself, and publishes a
       # provenance attestation alongside the tarball.
       # `prepublishOnly` runs `bun run check`, which builds dist/ before packing.
@@ -92,3 +95,8 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
           fi
+
+      - name: Attach the starter template
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/starter/"*.tgz
