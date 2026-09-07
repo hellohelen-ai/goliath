@@ -52,14 +52,17 @@ port, pass `--port "$CONDUCTOR_PORT"` to either command.
   suggestions, and the composer.
 - `src/stores/app-store.ts` — Zustand state for conversations, drafts, navigation, and search,
   with actions that route background replies to the correct conversation.
+- `src/storage/` — SQLite conversations, messages, and agent memory; startup restoration,
+  interrupted request recovery, and ordered persistence of Zustand changes.
 - `src/hooks/` — home actions, Zustand subscriptions, and chat input/scrolling.
 - `src/agents/goliath/tools/index.ts` — registered mock tools and their suggestion metadata. Both the
   welcome card and the suggestion sheet read this catalog.
 - `src/ui/agent-mark.tsx` — the shared stone SVG imported from the docs site; native SVG support
   requires a development build after installing dependencies.
 
-Conversations and tasks are held in memory for the current app session. Search filters actual
-conversation content, and suggested requests fill the composer for editing before sending.
+Conversations, drafts, completed replies, approval decisions, and agent memory survive app restarts
+in the local `goliath.db` SQLite database. Demo tasks still reset each app session.
+Search filters actual conversation content, and suggested requests fill the composer for editing before sending.
 Store and runtime behavior are covered by `bun run test` from the example directory and the example CI job.
 Runtime tests use the harness's scripted `fakeModel`, including approval and cancellation paths.
 
@@ -89,6 +92,7 @@ src/
 │   └── home-screen.tsx
 ├── hooks/
 ├── stores/
+├── storage/
 └── ui/
 ```
 
@@ -103,8 +107,19 @@ completeTurn(message, result);
 
 Goliath selects each conversation's memory and request queue internally using its ID.
 The UI state store holds messages and drafts; it never holds agent instances or pending promises.
-The example uses in-process conversation memory. Its approval promises end when the app closes;
-they are not durable checkpoints.
+The memory factory in `agent.ts` uses the same conversation ID to restore the agent's compacted
+context. The full visible transcript is stored separately, so compaction does not remove old chat messages.
+
+The app waits for restoration before opening the inbox and saves user messages before starting
+the agent. Failed conversation writes keep unsaved changes in memory and show a retry screen.
+On restart, unfinished requests become **interrupted**, unanswered approvals become cancelled,
+and **Edit and retry** copies the original request into the composer for review. Previously allowed
+actions retain their decision; some tool steps may already have finished. Running promises and
+tool execution are not resumed automatically.
+
+After adding or updating the SQLite native module, run `bun run ios` to rebuild the development
+client. Persistence tests use a real SQLite file, close it, and reopen it with a fresh app store and
+agent. They also cover isolated context, interrupted approvals, failed writes, and transaction rollback.
 
 There is deliberately **no** `fallback` configured. This example is about what the phone finishes
 on its own; adding a cloud fallback would hide the moments when it cannot.

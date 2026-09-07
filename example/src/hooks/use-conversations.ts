@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useGoliathAgent } from "@/agents/goliath";
 import { appStore } from "@/stores/app-store";
+import { appPersistence } from "@/storage/app-persistence";
 
 export function useConversations() {
   const agent = useGoliathAgent();
@@ -14,6 +15,7 @@ export function useConversations() {
     if (!startTurn(message, text)) return;
 
     try {
+      await appPersistence.flush();
       const result = await agent.ask(conversationId, text, {
         onApproval: (request) => requestApproval(message, request),
       });
@@ -23,7 +25,7 @@ export function useConversations() {
     }
   };
 
-  const confirm = (conversationId: string, messageId: string, approved: boolean) => {
+  const confirm = async (conversationId: string, messageId: string, approved: boolean) => {
     const chat = appStore.getState().conversations.find(({ id }) => id === conversationId);
     const message = chat?.messages.find(({ id }) => id === messageId);
     if (
@@ -32,8 +34,14 @@ export function useConversations() {
       message.confirmation.decision !== undefined
     )
       return;
-    if (agent.approve(conversationId, approved))
-      recordApproval({ conversationId, messageId }, approved);
+    recordApproval({ conversationId, messageId }, approved);
+    try {
+      await appPersistence.flush();
+      agent.approve(conversationId, approved);
+    } catch {
+      recordApproval({ conversationId, messageId }, false);
+      agent.approve(conversationId, false);
+    }
   };
 
   return { send, confirm, available: agent.available };

@@ -4,7 +4,7 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  status?: "running" | "completed" | "error";
+  status?: "running" | "completed" | "error" | "interrupted";
   result?: RunResult;
   confirmation?: { tool: string; input: unknown; decision?: boolean };
 };

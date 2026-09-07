@@ -35,7 +35,8 @@ const makeConversation = (id: string): Conversation => ({
   draft: "",
 });
 
-// Pure, in-memory state. Agent instances and pending native work stay in the agent runtime.
+// Reactive UI state. The storage module restores and persists conversation snapshots.
+// Agent instances and pending native work stay in the agent runtime.
 export function createAppStore() {
   let sequence = 0;
   return createStore<AppState>((set, get) => ({

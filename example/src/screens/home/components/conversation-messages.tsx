@@ -63,11 +63,16 @@ export function ConversationMessages({
           </Text>
         </View>
       )}
-      {chat.messages.map((message) => (
+      {chat.messages.map((message, index) => (
         <MessageBubble
           key={message.id}
           message={message}
           onConfirm={(approved) => onConfirm(message.id, approved)}
+          onRetry={
+            message.status === "interrupted" && chat.messages[index - 1]?.role === "user"
+              ? () => onChooseSuggestion(chat.messages[index - 1].text)
+              : undefined
+          }
         />
       ))}
     </ScrollView>
