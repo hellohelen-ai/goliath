@@ -44,7 +44,8 @@ export function ConversationMessages({
       <View style={styles.assistantBubble}>
         <Text style={styles.messageText}>Hey — I’m Goliath.</Text>
         <Text style={styles.messageText}>
-          I can help with your to-do list. Ask what’s open, add a task, or check something off.
+          I can help with your to-do list and notes. Add a task, search the sample docs, or save a
+          note.
         </Text>
       </View>
       {chat.messages.length === 0 && (

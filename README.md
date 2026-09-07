@@ -100,9 +100,10 @@ tool loop natively. Both fall over on a phone for the same reasons:
 | `tools`        | `{}`                        | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
 | `memory`       | in-process per conversation | A default `Memory` object or `(conversationId) => Memory` factory          |
 | `fallback`     | none                        | Receives the ask, the brief, the step log, and the reason. Returns text    |
-| `confirm`      | approve all                 | Asked before any `writes: true` tool runs                                  |
+| `confirm`      | approve ordinary tools      | `requiresConfirmation` tools decline without a handler                     |
 | `window`       | `4096`                      | Input + output window; a number or async capacity callback                 |
 | `countTokens`  | estimate                    | Optional async native/provider text tokenizer                              |
+| `budgets`      | scales with window          | Optional per-result and aggregate limits for literal tool excerpts         |
 | `maxSteps`     | `5`                         | Maximum steps per turn                                                     |
 | `instructions` | a careful assistant         | One or two sentences. Every prompt starts with it                          |
 | `onEvent`      | none                        | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
@@ -241,8 +242,9 @@ appropriate when the underlying model/session actually supports 8192 tokens.
 
 Before a call, the rolling brief is clipped to one eighth of the window. If a planner or answer
 prompt is still too large, older tool results are shortened while keeping every step and the
-newest result. Custom `toModelOutput` strings also have the 600-character cap. Return only the
-fields the next step needs; use filtering and pagination inside tools for larger datasets.
+newest result. Custom `toModelOutput` strings have the 600-character cap unless the tool sets
+`outputMode: "content"`, which uses per-result and aggregate retrieval token budgets. Return only
+the fields the next step needs; use filtering and pagination inside tools for larger datasets.
 
 Without lifecycle extensions, if the request still cannot fit, Goliath emits `escalate` with reason `context-budget` and calls
 your configured fallback with the original ask and step records. It does not truncate the current
@@ -392,3 +394,24 @@ CI over OIDC with a provenance attestation — `npm audit signatures` will verif
 ## License
 
 MIT
+
+## Virtual files
+
+Give the agent searchable documents with the optional filesystem module:
+
+```ts
+import { createFilesystem, staticFilesystem } from "@hellohelen-ai/goliath/filesystem";
+
+const files = createFilesystem({
+  backend: staticFilesystem({ "/guide.md": "Water the basil on Tuesday." }),
+});
+const agent = createAgent({ model, tools: files.tools });
+await agent.run("When should I water the basil?");
+```
+
+The default tools are read-only `glob`, literal `grep`, and paginated `readFile`.
+Choose `inMemoryFilesystem` for scratch space, `sqliteFilesystem` for persistence, or
+`compositeFilesystem` to route different directories to different backends.
+Writes are opt-in and require an explicit approval handler. Excerpts automatically use the
+harness's context budget. See the [virtual files guide](https://hellohelen-ai.github.io/goliath/guides/filesystem/)
+and [API reference](https://hellohelen-ai.github.io/goliath/reference/filesystem/).

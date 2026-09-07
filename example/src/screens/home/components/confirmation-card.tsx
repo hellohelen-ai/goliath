@@ -12,9 +12,7 @@ export function ConfirmationCard({
 }) {
   return (
     <View style={styles.assistantBubble}>
-      <Text style={styles.messageText}>
-        {confirmation.tool === "createTask" ? "Add this task?" : "Mark this task done?"}
-      </Text>
+      <Text style={styles.messageText}>{confirmationTitle(confirmation.tool)}</Text>
       <Text selectable style={styles.secondaryText}>
         {confirmationLabel(confirmation.input)}
       </Text>
@@ -56,4 +54,15 @@ function confirmationLabel(input: unknown) {
   if (input && typeof input === "object" && "title" in input && typeof input.title === "string")
     return input.title;
   return JSON.stringify(input, null, 2);
+}
+
+function confirmationTitle(tool: string) {
+  const titles: Record<string, string> = {
+    createTask: "Add this task?",
+    completeTask: "Mark this task done?",
+    writeFile: "Save this file?",
+    editFile: "Edit this file?",
+    deleteFile: "Delete this file?",
+  };
+  return titles[tool] ?? `Allow ${tool}?`;
 }

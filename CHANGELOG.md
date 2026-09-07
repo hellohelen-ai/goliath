@@ -10,6 +10,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Optional `@hellohelen-ai/goliath/filesystem` module with in-memory, static, SQLite, and composite
+  backends; scoped backend factories; bounded glob/grep/read tools; and revision-checked writes.
+- Token-budgeted literal tool output via `outputMode: "content"`, configurable per-result and
+  active retrieval limits, and explicit approval requirements for opted-in writing tools.
+- Example file tools with read-only sample documents, persistent shared notes, conversation-local
+  scratch space, approval cards, and file suggestions; filesystem guide and API reference.
+
 - Conversation-aware `agent.run(text, { conversationId })`, with isolated memory, request queues,
   context-window tracking, and fallback counts; existing calls use a separate default conversation.
 - Memory factories for persistent history per conversation, per-run approval callbacks, and

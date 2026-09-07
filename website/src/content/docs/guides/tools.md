@@ -60,6 +60,10 @@ The app keeps the full return value. The model gets `toModelOutput(result)`, or 
 `key: value` lines capped at 600 characters. Use `toModelOutput` when the default keeps the wrong
 fields.
 
+For literal excerpts, `outputMode: "content"` uses token budgets instead of the character cap.
+The [filesystem module](/goliath/guides/filesystem/) supplies read/search tools that paginate
+within this allowance, plus opt-in writing tools with revision checks.
+
 ## Errors are results
 
 A tool that throws does not end the turn. The message becomes the step's result and the conductor

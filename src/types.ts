@@ -17,12 +17,16 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
   parameters: z.ZodType<INPUT>;
   /** True when the tool changes something. Goliath asks before running it. */
   writes?: boolean;
+  /** Require an explicit confirmation handler; otherwise decline writes. */
+  requiresConfirmation?: boolean;
+  /** Literal excerpts use token budgets instead of the default 600-character summary. */
+  outputMode?: "summary" | "content";
   execute: (input: INPUT, context: ToolContext) => Promise<OUTPUT> | OUTPUT;
   /** Resolve selected references from full earlier outputs before validation and confirmation. */
   resolveInput?: (input: INPUT, context: ToolContext) => INPUT | Promise<INPUT>;
   /**
    * What the model sees. The app keeps the full output; the model gets this
-   * string, capped at 600 characters even with a custom formatter.
+   * string, capped at 600 characters unless outputMode is "content".
    * Default: `key: value` lines.
    */
   toModelOutput?: (output: OUTPUT) => string;
@@ -40,6 +44,8 @@ type ToolContext<C = unknown> = {
   /** Application context supplied to run; never injected into prompts automatically. */
   context?: C;
   signal?: AbortSignal;
+  /** Model-facing output allowance for this invocation. */
+  resultBudget?: import("./tool-output.js").ResultBudget;
   /** Earlier steps in this turn. Full JSON-serializable outputs stay outside model prompts. */
   steps?: readonly StepRecord[];
   /** Latest exchanges, including their tool records when available. */
@@ -108,6 +114,7 @@ type StepRecord = {
   input?: unknown;
   /** The compressed tool result the transcript carries forward. */
   result?: string;
+  outputMode?: "summary" | "content";
   /** Full JSON-serializable output for application code. Never rendered into a prompt. */
   output?: unknown;
   /** A state-changing tool was selected; used to invalidate earlier read results. */
@@ -188,12 +195,14 @@ type GoliathConfig<C = unknown, T = unknown> = {
   /** A Memory for the default conversation, or a factory returning isolated memory per ID. */
   memory?: Memory | ((conversationId: string | undefined) => Memory);
   fallback?: Fallback;
-  /** Asked before any tool with `writes: true` runs. Default approves everything. */
+  /** Asked before any tool with `writes: true` runs. Default approves ordinary tools; requiresConfirmation tools are declined. */
   confirm?: Confirm;
   /** Total input + output window in tokens. Every model call is budgeted. Default 4096. */
   window?: number | (() => number | Promise<number>);
   /** Optional native/provider tokenizer. A failing counter stops generation rather than guessing. */
   countTokens?: TokenCounter;
+  /** Optional limits for literal tool excerpts. Defaults scale with the model window. */
+  budgets?: import("./tool-output.js").ContentBudgets;
   /** Maximum number of steps the conductor may plan in one turn. Default 5. */
   maxSteps?: number;
   /** @deprecated This option is unused. Use afterTool and beforePlan extensions instead. */

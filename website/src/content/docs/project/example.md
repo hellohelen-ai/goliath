@@ -4,7 +4,7 @@ description: An Expo chat app that runs a real turn on the phone's own model.
 ---
 
 [`example/`](https://github.com/hellohelen-ai/goliath/tree/main/example) in the repository is a
-chat app: three tools, a confirmation prompt before anything writes, and suggestions backed by mock tools.
+chat app: task and file tools, a confirmation prompt before anything writes, and editable suggestions.
 
 Ask it something like _"if I don't already have it, add call the dentist"_ and watch: Goliath
 lists the tasks, decides whether the task is already there, asks before it writes, and answers.
@@ -61,3 +61,22 @@ There is deliberately **no** `fallback`. The example is about what the phone fin
 a cloud fallback would hide the moments when it cannot.
 
 The example is tested, typechecked, doctored, and bundled in CI so it cannot drift from the public API.
+
+## Try virtual files
+
+The agent registers file tools alongside the mock task tools. Try the suggestions **Read the file
+guide**, **Find the greenhouse code**, and **Save a note**, or ask:
+
+- “Read /docs/guide.md.”
+- “Find the greenhouse access code in /docs.”
+- “Create /notes/garden.md with the text: Water the basil on Tuesday.”
+- “Read /notes/garden.md.”
+
+Approve the save, restart the app, and read the note again. Notes are stored in the separate
+`goliath-files.db` database and shared by this app's conversations. `/docs` contains static,
+read-only reference files. Other paths use temporary scratch storage scoped to each conversation.
+Demo tasks and scratch files reset on launch; conversations and notes persist.
+
+The composition lives in `src/agents/goliath/filesystem/`: `documents.ts` supplies references,
+`backend.ts` defines routes and scopes, and `index.ts` chooses the exposed tools.
+Delete is available in the library but not registered in the example.

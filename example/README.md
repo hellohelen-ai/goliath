@@ -1,6 +1,6 @@
 # Goliath example
 
-A dark chat interface, three tools, and an agent running on the phone’s own model.
+A dark chat interface, task and file tools, and an agent running on the phone’s own model.
 
 Ask it something like _"if I don't already have it, add call the dentist"_ and follow the conversation:
 Goliath lists the tasks, decides whether the task is already there, asks before it writes, and
@@ -76,6 +76,7 @@ src/
 │       ├── runtime.ts
 │       ├── use-goliath-agent.ts
 │       ├── index.ts
+│       ├── filesystem/       # routes, scopes, and reference documents
 │       ├── lifecycle/
 │       │   └── logging.ts
 │       └── tools/
@@ -138,3 +139,22 @@ the library before checking the example.
 
 `completeTask` demonstrates a structured handoff: it requires a successful `listTasks`, then
 resolves the selected title to an exact saved ID before asking for confirmation.
+
+## Try virtual files
+
+The agent registers file tools alongside the mock task tools. Try the suggestions **Read the file
+guide**, **Find the greenhouse code**, and **Save a note**, or ask:
+
+- “Read /docs/guide.md.”
+- “Find the greenhouse access code in /docs.”
+- “Create /notes/garden.md with the text: Water the basil on Tuesday.”
+- “Read /notes/garden.md.”
+
+Approve the save, restart the app, and read the note again. Notes are stored in the separate
+`goliath-files.db` database and shared by this app's conversations. `/docs` contains static,
+read-only reference files. Other paths use temporary scratch storage scoped to each conversation.
+Demo tasks and scratch files reset on launch; conversations and notes persist.
+
+The composition lives in `src/agents/goliath/filesystem/`: `documents.ts` supplies references,
+`backend.ts` defines routes and scopes, and `index.ts` chooses the exposed tools.
+Delete is available in the library but not registered in the example.

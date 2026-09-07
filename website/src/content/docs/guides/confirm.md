@@ -39,4 +39,6 @@ while the user is deciding, so a slow user does not time out Apple's session.
 
 ## Default
 
-With no `confirm`, every write is approved. That is acceptable in tests and unsafe in an app.
+With no `confirm`, ordinary writing tools are approved. A writing tool with
+`requiresConfirmation: true` is declined instead; filesystem write tools set this flag.
+Supply an explicit config-level or per-run confirmation handler to approve those tools.
