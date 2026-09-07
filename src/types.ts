@@ -87,6 +87,7 @@ type EscalationReason =
   | "too-many-steps"
   | "repeated-tool-call"
   | "empty-answer"
+  | "answer-invalid"
   | "plan-invalid"
   | "conductor-asked"
   | "tool-args-invalid"
@@ -154,8 +155,10 @@ type TraceEvent =
       source?: "tokenizer" | "estimate";
     };
 
-type RunResult = {
+type RunResult<T = unknown> = {
   text: string;
+  /** Validated structured device answer. Absent for cloud answers, stops, and failed generation. */
+  output?: T;
   handledBy: "device" | "cloud";
   /** True when the loop stalled, no fallback was configured, and the answer is a best effort from the step log. */
   bestEffort?: boolean;
@@ -172,7 +175,9 @@ type Compressor = (input: {
   budget: number;
 }) => Promise<ModelMessage[]> | ModelMessage[];
 
-type GoliathConfig<C = unknown> = {
+type GoliathConfig<C = unknown, T = unknown> = {
+  /** Optional guided device answer. Keep schemas flat; run-level schemas override this default. */
+  outputSchema?: z.ZodType<T>;
   /** Awaited in array order. Hooks change behavior; onEvent observes it. */
   extensions?: readonly GoliathExtension<C>[];
   /** Any AI SDK language model. On a phone, `apple()` from `@react-native-ai/apple`. */

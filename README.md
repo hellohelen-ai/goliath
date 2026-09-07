@@ -95,6 +95,7 @@ tool loop natively. Both fall over on a phone for the same reasons:
 
 | Option         | Default             | Notes                                                                      |
 | -------------- | ------------------- | -------------------------------------------------------------------------- |
+| `outputSchema` | none                | Optional Zod schema for a typed device answer; overridable per run         |
 | `model`        | required            | AI SDK model, or a factory returning one                                   |
 | `tools`        | `{}`                | Keep to five or fewer per Goliath. Flat schemas. One-sentence descriptions |
 | `memory`       | in-process          | `{ load, save }` over `{ summary, recent }`. Persist it however you like   |
@@ -106,6 +107,45 @@ tool loop natively. Both fall over on a phone for the same reasons:
 | `instructions` | a careful assistant | One or two sentences. Every prompt starts with it                          |
 | `onEvent`      | none                | Every trace event as it happens: plan, tool, confirm, escalate, remember   |
 | `extensions`   | `[]`                | Ordered, awaited lifecycle hooks for transformations and policy decisions  |
+
+## Structured turn results
+
+Pass a Zod schema to generate the closing answer directly in your app's shape:
+
+```ts
+const outputSchema = z.object({
+  reply: z.string(),
+  action: z.enum(["rest", "walk"]),
+});
+const agent = createAgent({ model, tools, outputSchema });
+const result = await agent.run("Suggest one small thing I can do today");
+result.output; // { reply: string; action: "rest" | "walk" } | undefined
+
+// A per-turn schema overrides the default and infers that turn's output type.
+const count = await agent.run("How many tasks are open?", {
+  outputSchema: z.object({ count: z.number() }),
+});
+count.output; // { count: number } | undefined
+```
+
+The answer uses guided structured generation in the existing answer call. `output` is the
+validated value; `text` retains the generated JSON, so memory, answer events, and `afterAnswer`
+continue to work without an extra model pass. `afterAnswer` may rewrite `text` for display;
+it does not change or revalidate `output`. Schema transforms run once, so `text` may also differ
+from the transformed value. Without a schema, the existing prose behavior and token cost stay
+unchanged.
+
+Keep schemas flat, with a few short fields. A roughly 3B model still struggles with complex
+schemas even when the JSON is valid. Schema tokens count toward the input budget, and the
+answer retains its 384-token output cap. Invalid JSON or schema validation gets one guided
+retry, then escalates with `answer-invalid`. Without fallback, that failure returns empty
+`text` and no `output`. Best-effort device answers also honor the schema and retry once.
+
+`output` is device-only and optional: cloud fallbacks still return text, extension stops have
+no structured output, and failed generation may produce no answer. Check `result.output`
+before using it. For explicit application context types, use
+`createAgent<AppContext, z.infer<typeof outputSchema>>({ model, outputSchema, ... })`, or
+supply the schema per `run` call to infer the output type there.
 
 ## Extend the lifecycle
 

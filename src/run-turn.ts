@@ -42,6 +42,7 @@ import { prepareToolCall, runAnswerStep } from "./worker.js";
 type TurnInput<C = unknown> = {
   ask: string;
   model: ModelSource;
+  outputSchema?: z.ZodType;
   countTokens?: TokenCounter;
   tools: ToolMap;
   memory: Memory;
@@ -229,8 +230,18 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
 
   async function finishAnswer(
     text: string,
-    options: { brief?: string; bestEffort?: boolean; persist: boolean; deviceFailed?: boolean },
+    options: {
+      brief?: string;
+      bestEffort?: boolean;
+      persist: boolean;
+      deviceFailed?: boolean;
+      output?: unknown;
+    },
   ): Promise<RunResult> {
+    const answerResult = (): RunResult => ({
+      ...result(text, options.bestEffort),
+      ...(options.output !== undefined ? { output: options.output } : {}),
+    });
     checkAbort(input.signal);
     if (text.trim()) {
       await hooks.run(
@@ -291,22 +302,25 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
             type: "memory-error",
             error: describeError(error instanceof OperationError ? error.cause : error),
           });
-          return result(text, options.bestEffort);
+          return answerResult();
         }
         emit({ type: "remember", summary: next.summary });
       }
     }
-    return result(text, options.bestEffort);
+    return answerResult();
   }
 
   async function escalate(reason: EscalationReason, error?: string): Promise<RunResult> {
     escalating = true;
     emit({ type: "escalate", reason, ...(error ? { error } : {}) });
     if (!input.fallback) {
-      if (reason === "model-error" || reason === "context-budget") return result("");
+      if (reason === "model-error" || reason === "context-budget" || reason === "answer-invalid")
+        return result("");
       let text = "";
+      let output: unknown;
       try {
-        text = await runAnswerStep({
+        const answer = await runAnswerStep({
+          ...(input.outputSchema ? { outputSchema: input.outputSchema } : {}),
           model: input.model,
           instructions,
           ask,
@@ -318,6 +332,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           ...signal,
           ...budget,
         });
+        if (answer.ok) {
+          text = answer.text;
+          output = answer.output;
+        } else emit({ type: "escalate", reason: "answer-invalid" });
       } catch (failure) {
         if (strictBudget && failure instanceof ContextBudgetError) throw failure;
         if (!(failure instanceof ModelCallError) && !(failure instanceof ContextBudgetError))
@@ -325,7 +343,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         if (failure instanceof ModelCallError && isGuardrail(failure.cause))
           emit({ type: "escalate", reason: "guardrail", error: describeError(failure.cause) });
       }
-      return finishAnswer(text, { bestEffort: true, persist: false });
+      return finishAnswer(text, { bestEffort: true, persist: false, output });
     }
     let request = {
       ask,
@@ -457,6 +475,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       if (next.kind === "answer") {
         const answerInput = {
           model: input.model,
+          ...(input.outputSchema ? { outputSchema: input.outputSchema } : {}),
           instructions,
           ask,
           summary: state.summary,
@@ -466,11 +485,17 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           ...signal,
           ...budget,
         };
-        let text = await runAnswerStep(answerInput);
-        if (judgeAnswer(text))
-          text = await runAnswerStep({ ...answerInput, nudge: EMPTY_ANSWER_NUDGE });
-        if (judgeAnswer(text)) return escalate("empty-answer");
-        return finishAnswer(text, { brief: next.brief, persist: true });
+        let answer = await runAnswerStep(answerInput);
+        if (!answer.ok) return escalate("answer-invalid");
+        if (!input.outputSchema && judgeAnswer(answer.text))
+          answer = await runAnswerStep({ ...answerInput, nudge: EMPTY_ANSWER_NUDGE });
+        if (!answer.ok) return escalate("answer-invalid");
+        if (judgeAnswer(answer.text)) return escalate("empty-answer");
+        return finishAnswer(answer.text, {
+          brief: next.brief,
+          persist: true,
+          output: answer.output,
+        });
       }
       const tool =
         next.tool && Object.hasOwn(available, next.tool) ? available[next.tool] : undefined;

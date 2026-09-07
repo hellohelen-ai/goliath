@@ -11,6 +11,7 @@ description: Every reason a turn leaves the device.
 | `model-unavailable`  | Apple Intelligence is unavailable, disabled, or its models are not ready     |
 | `too-many-steps`     | The step cap was reached without an answer                                   |
 | `repeated-tool-call` | The same tool was called with the same input twice                           |
+| `answer-invalid`     | Structured answer failed JSON parsing or schema validation after one retry   |
 | `empty-answer`       | The answer was empty after one nudged retry                                  |
 | `plan-invalid`       | Two malformed plans in a row                                                 |
 | `conductor-asked`    | The conductor returned `kind: "escalate"`                                    |
