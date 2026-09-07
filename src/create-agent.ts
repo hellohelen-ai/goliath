@@ -47,10 +47,11 @@ const createAgent = <C = unknown, T = unknown>(config: GoliathConfig<C, T>): Age
   const maxSteps = config.maxSteps ?? DEFAULT_MAX_STEPS;
   if (!Number.isInteger(maxSteps) || maxSteps < 0)
     throw new Error("maxSteps must be a nonnegative integer");
-  const confirm = config.confirm ?? (async () => true);
   const tools = Object.fromEntries(
     Object.values(config.tools ?? {}).map((tool) => [tool.name, tool]),
   );
+  const confirm: Confirm =
+    config.confirm ?? (async ({ tool }) => !tools[tool]?.requiresConfirmation);
   const extensions = [...(config.extensions ?? [])];
   const names = new Set<string>();
   for (const extension of extensions) {
@@ -105,6 +106,7 @@ const createAgent = <C = unknown, T = unknown>(config: GoliathConfig<C, T>): Age
       model: config.model,
       ...(config.countTokens ? { countTokens: config.countTokens } : {}),
       tools,
+      ...(config.budgets ? { budgets: config.budgets } : {}),
       ...(outputSchema ? { outputSchema } : {}),
       memory: session.memory,
       confirm: options.confirm ?? confirm,

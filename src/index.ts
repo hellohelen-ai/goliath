@@ -43,3 +43,5 @@ export type {
   StopDecision,
   ToolDecision,
 } from "./extensions.js";
+
+export type { ContentBudgets, ResultBudget } from "./tool-output.js";

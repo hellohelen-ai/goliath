@@ -23,8 +23,29 @@ const catalog = [
 ] as const;
 
 export const mockTools = Object.fromEntries(catalog.map(({ tool }) => [tool.name, tool]));
-export const mockSuggestions = catalog.map(({ tool, ...suggestion }) => ({
+const taskSuggestions = catalog.map(({ tool, ...suggestion }) => ({
   id: tool.name,
   ...suggestion,
 }));
+export const mockSuggestions = [
+  ...taskSuggestions,
+  {
+    id: "grep",
+    title: "Find the greenhouse code",
+    ask: "Find the greenhouse access code in /docs.",
+    icon: "search-outline" as const,
+  },
+  {
+    id: "readFile",
+    title: "Read the file guide",
+    ask: "Read /docs/guide.md.",
+    icon: "document-text-outline" as const,
+  },
+  {
+    id: "writeFile",
+    title: "Save a note",
+    ask: "Create /notes/garden.md with the text: Water the basil on Tuesday.",
+    icon: "create-outline" as const,
+  },
+];
 export type ToolSuggestion = (typeof mockSuggestions)[number];

@@ -14,22 +14,22 @@ agent.sessionFallback; // default conversation
 
 ## Config
 
-| Option         | Default                     | Notes                                                                    |
-| -------------- | --------------------------- | ------------------------------------------------------------------------ |
-| `outputSchema` | none                        | Zod schema for guided structured device answers; keep it flat            |
-| `model`        | required                    | Any AI SDK `LanguageModel`                                               |
-| `tools`        | `{}`                        | Keep to five or fewer per agent. Flat schemas. One-sentence descriptions |
-| `memory`       | in-process per conversation | Default `Memory` object or `(conversationId) => Memory` factory          |
-| `fallback`     | none                        | Receives the ask, the brief, the step log, and the reason. Returns text  |
-| `confirm`      | approve all                 | Asked before any `writes: true` tool runs                                |
-| `window`       | `4096`                      | Apple Foundation Models. The brief is budgeted at one eighth of it       |
-| `maxSteps`     | `5`                         | Maximum steps per turn                                                   |
-| `instructions` | a careful assistant         | One or two sentences. Every prompt starts with it                        |
-| `facts`        | none                        | `Record<string, string>` or a function called once per turn              |
-| `examples`     | none                        | Two or three worked plans for the conductor. ~60 tokens per step each    |
-| `compressors`  | none                        | Deprecated; never invoked. Use lifecycle extensions instead              |
-| `extensions`   | `[]`                        | Ordered, awaited [lifecycle hooks](/goliath/guides/extensions/)          |
-| `onEvent`      | none                        | Every trace event as it happens                                          |
+| Option         | Default                     | Notes                                                                       |
+| -------------- | --------------------------- | --------------------------------------------------------------------------- |
+| `outputSchema` | none                        | Zod schema for guided structured device answers; keep it flat               |
+| `model`        | required                    | Any AI SDK `LanguageModel`                                                  |
+| `tools`        | `{}`                        | Keep to five or fewer per agent. Flat schemas. One-sentence descriptions    |
+| `memory`       | in-process per conversation | Default `Memory` object or `(conversationId) => Memory` factory             |
+| `fallback`     | none                        | Receives the ask, the brief, the step log, and the reason. Returns text     |
+| `confirm`      | approve ordinary tools      | Asked before writes; `requiresConfirmation` tools decline without a handler |
+| `window`       | `4096`                      | Apple Foundation Models. The brief is budgeted at one eighth of it          |
+| `maxSteps`     | `5`                         | Maximum steps per turn                                                      |
+| `instructions` | a careful assistant         | One or two sentences. Every prompt starts with it                           |
+| `facts`        | none                        | `Record<string, string>` or a function called once per turn                 |
+| `examples`     | none                        | Two or three worked plans for the conductor. ~60 tokens per step each       |
+| `compressors`  | none                        | Deprecated; never invoked. Use lifecycle extensions instead                 |
+| `extensions`   | `[]`                        | Ordered, awaited [lifecycle hooks](/goliath/guides/extensions/)             |
+| `onEvent`      | none                        | Every trace event as it happens                                             |
 
 The `tools` map is re-keyed by each tool's own `name`, so the property names you use do not
 matter.
@@ -101,3 +101,16 @@ error counts are independent. An unused conversation reports `false`.
 | ------------------- | ------ |
 | `DEFAULT_WINDOW`    | `4096` |
 | `DEFAULT_MAX_STEPS` | `5`    |
+
+## Literal tool output budgets
+
+`budgets.toolResultTokens` defaults to `min(800, floor(window / 8))`, with a minimum of one.
+`budgets.retrievedContextTokens` defaults to `min(2000, floor(window / 4))`, also at least one.
+Both overrides must be positive integer token counts, and a result must fit within the aggregate
+allowance. These limits apply to tools with `outputMode: "content"`; ordinary summaries retain
+their 600-character cap. Newer excerpts take priority in model prompts. The run transcript keeps
+the original excerpts, and the whole-prompt budget guard remains in force.
+
+`countTokens` accepts an async or synchronous provider tokenizer. `window` also accepts an async
+or synchronous function returning the model's current context size.
+See [Virtual files](/goliath/guides/filesystem/) for storage and tool configuration.

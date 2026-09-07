@@ -38,7 +38,11 @@
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./filesystem": {
+      "types": "./dist/filesystem/index.d.ts",
+      "default": "./dist/filesystem/index.js"
+    }
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

@@ -16,8 +16,9 @@ export function AboutAgent({
       <AgentMark />
       <Text style={styles.messageText}>A little help, right here.</Text>
       <Text style={styles.secondaryText}>
-        An assistant for your tasks, powered by Apple Intelligence. Conversations and demo tasks
-        stay in memory while the app is open.
+        An assistant for your tasks and notes, powered by Apple Intelligence. Conversations and
+        notes stay on this device across launches. Demo tasks and scratch files reset when the app
+        restarts.
       </Text>
       <View style={styles.infoCard}>
         <View style={styles.inline}>
@@ -26,7 +27,9 @@ export function AboutAgent({
             {available ? "Apple Intelligence available" : "Apple Intelligence unavailable"}
           </Text>
         </View>
-        <Text style={styles.secondaryText}>Task changes always ask for your permission.</Text>
+        <Text style={styles.secondaryText}>
+          Task and file changes always ask for your permission.
+        </Text>
       </View>
     </Sheet>
   );

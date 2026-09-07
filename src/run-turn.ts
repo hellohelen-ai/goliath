@@ -1,3 +1,4 @@
+import { contentBudgets, fitResult, retrievedSteps } from "./tool-output.js";
 import { snapshot } from "./context.js";
 import { clipTokens, ContextBudgetError } from "./budget.js";
 import { z } from "zod";
@@ -44,6 +45,7 @@ type TurnInput<C = unknown> = {
   model: ModelSource;
   outputSchema?: z.ZodType;
   countTokens?: TokenCounter;
+  budgets?: GoliathConfig["budgets"];
   tools: ToolMap;
   memory: Memory;
   confirm: Confirm;
@@ -71,6 +73,7 @@ const stepSchema = z
     output: z.unknown().optional(),
     writes: z.boolean().optional(),
     result: z.string().optional(),
+    outputMode: z.enum(["summary", "content"]).optional(),
     skipped: z.boolean().optional(),
     cached: z.boolean().optional(),
     failed: z.boolean().optional(),
@@ -118,6 +121,13 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
     window: input.window,
     ...(input.countTokens ? { countTokens: input.countTokens } : {}),
   };
+  const limits = contentBudgets(input.window, input.budgets);
+  const resultBudget = {
+    maxTokens: limits.toolResultTokens,
+    ...(input.countTokens ? { countTokens: input.countTokens } : {}),
+  };
+  const modelSteps = () =>
+    retrievedSteps(steps, { ...resultBudget, maxTokens: limits.retrievedContextTokens });
   let ask = input.ask;
   let instructions = input.instructions ?? DEFAULT_INSTRUCTIONS;
   let facts: Record<string, string> = {};
@@ -333,7 +343,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           summary: state.summary,
           recent: state.recent,
           emit,
-          steps,
+          steps: await modelSteps(),
           bestEffort: true,
           ...signal,
           ...budget,
@@ -438,7 +448,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
             summary: state.summary,
             recent: state.recent,
             ...(input.countTokens ? { countTokens: input.countTokens } : {}),
-            steps,
+            steps: await modelSteps(),
             maxSteps: input.maxSteps,
             window: input.window,
             emit,
@@ -487,7 +497,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           summary: state.summary,
           recent: state.recent,
           emit,
-          steps,
+          steps: await modelSteps(),
           ...signal,
           ...budget,
         };
@@ -513,6 +523,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
       )
         return escalate("tool-prerequisite-missing");
       const toolContext: ToolContext<C> = {
+        resultBudget,
         ...signal,
         ...(input.conversationId !== undefined ? { conversationId: input.conversationId } : {}),
         ...(input.context !== undefined ? { context: input.context } : {}),
@@ -528,7 +539,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         ask,
         summary: state.summary,
         recent: state.recent,
-        steps,
+        steps: await modelSteps(),
         emit,
         ...signal,
         ...budget,
@@ -580,7 +591,10 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         if (previous && !readInvalidated) {
           if (!tool.writes && !previous.cached && !previous.failed && !previous.skipped) {
             outcomeTool = { status: "cached", fromStep: previous.index };
-            text = `same as step ${previous.index + 1}`;
+            text =
+              tool.outputMode === "content"
+                ? (previous.result ?? "")
+                : `same as step ${previous.index + 1}`;
             cachedOutput = snapshot(previous.output);
           } else return escalate("repeated-tool-call");
         }
@@ -607,6 +621,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         tool: tool.name,
         input: snapshot(args),
         ...(tool.writes ? { writes: true } : {}),
+        ...(tool.outputMode ? { outputMode: tool.outputMode } : {}),
         ...(cachedOutput !== undefined ? { output: cachedOutput } : {}),
         result: "(tool execution did not complete)",
       };
@@ -655,7 +670,8 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
           text = z.string().parse(patch.result);
         },
       );
-      record.result = clip(text, 600);
+      record.result =
+        tool.outputMode === "content" ? await fitResult(text, resultBudget) : clip(text, 600);
       emit({
         type: "tool",
         tool: tool.name,
