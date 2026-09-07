@@ -47,9 +47,6 @@ jobs:
             exit 1
           fi
 
-      - name: Pack the starter before publishing
-        run: bun run starter:pack "$RUNNER_TEMP/starter"
-
       # No NODE_AUTH_TOKEN: the npm CLI picks up the OIDC token itself, and publishes a
       # provenance attestation alongside the tarball.
       # `prepublishOnly` runs `bun run check`, which builds dist/ before packing.
@@ -96,7 +93,41 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
           fi
 
-      - name: Attach the starter template
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/starter/"*.tgz
+  # The template pins this release's SDK, so publish it only after the SDK is available.
+  # Configure this package's own npm trusted publisher before the next release.
+  publish-starter:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - run: npm install -g npm@latest
+      - run: bun install --frozen-lockfile
+      - run: bun run starter:pack "$RUNNER_TEMP/starter"
+      - run: npm publish "$RUNNER_TEMP/starter/"*.tgz --access public
+      - name: Verify the published template
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            got="$(npm view "@hellohelen-ai/expo-template-goliath@$version" version 2>/dev/null || true)"
+            if [ "$got" = "$version" ]; then
+              npm view "@hellohelen-ai/expo-template-goliath@$version" dist.attestations
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The registry did not serve template $version within five minutes." >&2
+          exit 1

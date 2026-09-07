@@ -51,7 +51,8 @@ export async function exportStarter(destination: string): Promise<void> {
   const app = JSON.parse(await readFile(join(example, "package.json"), "utf8"));
   app.name = templateName;
   app.version = sdk.version;
-  app.private = true;
+  // Expo makes generated apps private; the template package itself must be publishable.
+  delete app.private;
   app.description =
     "An Expo starter with Goliath, on-device tools, conversations, and local storage.";
   app.license = "MIT";

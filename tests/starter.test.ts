@@ -21,7 +21,7 @@ test("exported starter carries its assets, native module and tests without repos
   const manifest = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
   const sdk = JSON.parse(await readFile(join(repository, "package.json"), "utf8"));
   expect(manifest.name).toBe(templateName);
-  expect(manifest.private).toBe(true);
+  expect(manifest.private).toBeUndefined();
   expect(manifest.devDependencies["@types/bun"]).toBeDefined();
   expect(manifest.dependencies[sdk.name]).toBe(sdk.version);
   expect(

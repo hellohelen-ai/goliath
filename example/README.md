@@ -127,8 +127,8 @@ on its own; adding a cloud fallback would hide the moments when it cannot.
 
 ## Make your own app
 
-From the repository root, run `bun run starter:pack /tmp/goliath-starter` and pass the
-printed tarball path to `bun create expo my-app --template <tarball-path>`. The exported app
+After the template’s initial npm publication, run
+`bun create expo my-app --template @hellohelen-ai/expo-template-goliath`. The generated app
 uses the published SDK, contains its own assets, and retains the native context module.
 See the [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) for setup,
 customization, and testing SDK changes against the packaged starter.

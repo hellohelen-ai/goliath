@@ -9,30 +9,31 @@ own assets and native context module; it does not depend on the parent repositor
 
 ## Create an app
 
-With Bun and Node.js 24 installed, clone the repository and pack the template:
+After the template’s initial publication to npm, create an app with:
+
+```sh
+bun create expo my-app --template @hellohelen-ai/expo-template-goliath
+cd my-app
+bun run ios
+```
+
+Expo downloads the template, renames the project, marks the generated app private, and installs
+its dependencies. The template package is public; your generated app is not published.
+You can select a specific template version with `--template @hellohelen-ai/expo-template-goliath@<version>`.
+[Expo supports npm templates directly](https://github.com/expo/expo/blob/main/packages/create-expo/README.md).
+
+Until the first npm publication, or when testing unreleased changes, use a local tarball:
 
 ```sh
 git clone https://github.com/hellohelen-ai/goliath.git
 cd goliath
 bun install
 bun run starter:pack /tmp/goliath-starter
+bun create expo my-app --template /absolute/path/printed/by/the/pack/command.tgz
 ```
 
-The command prints the template tarball's absolute path. Use that path with Expo's CLI:
-
-```sh
-bun create expo my-app --template /absolute/path/to/hellohelen-ai-expo-template-goliath-0.3.0.tgz
-cd my-app
-bun run ios
-```
-
-The filename follows the SDK version in the checkout; replace the example path with the one
-printed by `starter:pack`. You can also download a template tarball from a CI or release-preflight
-`starter-artifacts` artifact. Releases created by the updated publish workflow attach the
-same kind of tarball to their GitHub Release. Older releases may not include it.
-
-The scoped npm template name is reserved in the generated manifest, but it is **not currently
-published to npm**: use the tarball path rather than the proposed npm template name.
+CI and release preflight also upload both SDK and template tarballs as `starter-artifacts`.
+No second template repository or custom project-creation CLI is needed.
 
 A native development build is required, not Expo Go. Use Xcode 26.4+ on a Mac and an iOS 26+
 Apple Intelligence-compatible device or simulator; see the [example prerequisites](/goliath/project/example/).
@@ -91,6 +92,25 @@ new template versions do not overwrite their app code. Native dependency changes
 new development build.
 
 The template version and its pinned SDK dependency follow the root package version. Test SDK
-changes through the tarball override above, and distribute the template only after that SDK
-version is available on npm. The release workflow publishes the SDK first, then attaches the
-starter tarball. It does not publish a second npm package or require new registry credentials.
+changes through the tarball override above, and publish the template only after that SDK
+version is available on npm. The tag-triggered `publish.yml` workflow publishes the SDK first,
+then its `publish-starter` job publishes the template through the existing `release` environment.
+
+### One-time npm setup for maintainers
+
+A new package needs its own publishing access and trusted-publisher connection; the SDK’s
+connection does not authorize the template. This checkout does not contain publishing tokens.
+For the initial release, a maintainer with access to the `@hellohelen-ai` scope can:
+
+1. Log in using `npm login` in their terminal.
+2. Run `bun run starter:check /tmp/goliath-starter-artifacts` and review the generated package.
+3. Confirm the pinned SDK version is already published, then run
+   `npm publish /tmp/goliath-starter-artifacts/hellohelen-ai-expo-template-goliath-<version>.tgz --access public`.
+4. In the template package’s npm settings, add a GitHub trusted publisher with owner
+   `hellohelen-ai`, repository `goliath`, workflow filename `publish.yml`, environment `release`,
+   and direct publishing allowed.
+
+Future SDK release tags can then publish both packages without a long-lived npm token.
+The environment still requires an allowed reviewer’s approval. A template publication failure
+is reported separately from the already-published SDK; it does not undo the SDK release.
+See [npm’s trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/).

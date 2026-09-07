@@ -420,7 +420,12 @@ For a step-by-step visual explanation, open [the standalone harness walkthrough]
 in a browser. It works offline and includes the normal, approval, repeated-call, refusal,
 malformed-plan, and file-retrieval paths.
 
-To start your own Expo app from the example, run `bun run starter:pack /tmp/goliath-starter`
-from a checkout, then pass the printed tarball path to `bun create expo my-app --template <path>`.
+Create an app from the npm starter template (after its initial publication):
+
+```sh
+bun create expo my-app --template @hellohelen-ai/expo-template-goliath
+```
+
 The [starter guide](https://hellohelen-ai.github.io/goliath/project/starter/) covers customization,
-updates, and testing the packaged SDK outside this repository.
+updates, and testing the packaged SDK outside this repository; local template tarballs remain
+available through `bun run starter:pack <artifact-directory>`.
