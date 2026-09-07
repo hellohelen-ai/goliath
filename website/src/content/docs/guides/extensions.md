@@ -33,9 +33,10 @@ await agent.run("What is on today?", {
 ```
 
 A concrete context type makes `run`'s context argument required. Without one, existing calls to
-`run(ask)` still work. Every hook receives `runId`, `context`, `signal`, and `state`, alongside the
+`run(ask)` still work. Every hook receives `runId`, `conversationId`, `context`, `signal`, and `state`, alongside the
 phase data below. `signal` is undefined when none was supplied. Tools receive the application data
-as `ToolContext.context` (typed `unknown` by default).
+as `ToolContext.context` (typed `unknown` by default), plus `ToolContext.conversationId`.
+The conversation ID is undefined for default runs and never automatically enters model prompts.
 
 The private `state: Map<string, unknown>` is allocated independently for each extension and run.
 Do not store run counters in shared extension fields. Plain objects and arrays in phase data are
@@ -169,8 +170,9 @@ oversized active-loop prompts reject with exported `GoliathBudgetError` before g
 without extensions, they escalate as `context-budget`. Scribe failures preserve completed answers.
 Native counts still require headroom for the provider's final transcript formatting.
 
-Runs on one instance are serialized, including their hooks; extension state remains private to
-each run. Hooks must not wait for another run on the same instance to start or finish.
+Runs within one conversation are serialized, including their hooks; different conversations may
+run concurrently on the same agent. Extension state remains private to each run. Hooks must not
+wait for another run in the same conversation to start or finish.
 
 Saved summaries are capped at one eighth of the window using the token estimator, and saved
 recent history is limited to three exchanges, including after memory transformations. Registering

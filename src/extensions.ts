@@ -95,6 +95,7 @@ type HookResults = {
 type HookPhase = keyof HookInputs;
 type HookContext<C = unknown> = {
   readonly runId: string;
+  readonly conversationId: string | undefined;
   readonly context: ReadonlyData<C>;
   readonly signal: AbortSignal | undefined;
   /** Private to this extension and this run. Never persisted or sent to a model. */
@@ -176,6 +177,7 @@ const createExtensionRunner = <C>(
   extensions: readonly GoliathExtension<C>[],
   context: C,
   signal?: AbortSignal,
+  conversationId?: string,
 ) => {
   const runId = `goliath-${Date.now().toString(36)}-${++nextRunId}`;
   const entries = extensions.map((extension) => ({ extension, state: new Map<string, unknown>() }));
@@ -184,6 +186,7 @@ const createExtensionRunner = <C>(
     ({
       ...copyData(data),
       runId,
+      conversationId,
       context,
       signal,
       state: entry.state,

@@ -35,6 +35,8 @@ type GoliathTool<INPUT = unknown, OUTPUT = unknown> = {
 };
 
 type ToolContext<C = unknown> = {
+  /** Conversation selected for this run. Not automatically included in model prompts. */
+  conversationId?: string;
   /** Application context supplied to run; never injected into prompts automatically. */
   context?: C;
   signal?: AbortSignal;
@@ -183,7 +185,8 @@ type GoliathConfig<C = unknown, T = unknown> = {
   /** Any AI SDK language model. On a phone, `apple()` from `@react-native-ai/apple`. */
   model: ModelSource;
   tools?: ToolMap;
-  memory?: Memory;
+  /** A Memory for the default conversation, or a factory returning isolated memory per ID. */
+  memory?: Memory | ((conversationId: string | undefined) => Memory);
   fallback?: Fallback;
   /** Asked before any tool with `writes: true` runs. Default approves everything. */
   confirm?: Confirm;

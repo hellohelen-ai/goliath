@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { createGoliathAgent, isGoliathAvailable } from "./agent";
+import { agent as goliath, isGoliathAvailable } from "./agent";
 import { createAgentRuntime } from "./runtime";
 
 export function useGoliathAgent() {
-  const [agent] = useState(() => createAgentRuntime(createGoliathAgent));
+  const [agent] = useState(() => createAgentRuntime(goliath));
 
   useEffect(() => () => agent.dispose(), [agent]);
 

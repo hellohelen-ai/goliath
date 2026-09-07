@@ -56,6 +56,7 @@ type TurnInput<C = unknown> = {
   onEvent?: (event: TraceEvent) => void;
   signal?: AbortSignal;
   context?: C;
+  conversationId?: string;
   extensions?: readonly GoliathExtension<C>[];
   sessionFallback?: boolean;
 };
@@ -105,7 +106,12 @@ const toolInfo = (tool: ToolMap[string]): ToolInfo => ({
 
 /** A single lifecycle for device, cloud, stops, failures, and cancellation. */
 const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
-  const hooks = createExtensionRunner(input.extensions ?? [], input.context as C, input.signal);
+  const hooks = createExtensionRunner(
+    input.extensions ?? [],
+    input.context as C,
+    input.signal,
+    input.conversationId,
+  );
   const strictBudget = !!input.extensions?.length;
   const signal = input.signal ? { signal: input.signal } : {};
   const budget = {
@@ -508,6 +514,7 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         return escalate("tool-prerequisite-missing");
       const toolContext: ToolContext<C> = {
         ...signal,
+        ...(input.conversationId !== undefined ? { conversationId: input.conversationId } : {}),
         ...(input.context !== undefined ? { context: input.context } : {}),
         steps: snapshot(steps) ?? [],
         recent: snapshot(state.recent) ?? [],

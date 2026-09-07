@@ -32,8 +32,8 @@ Metro loads the local harness source directly, so edits to `src/` and `example/`
 
 ## What to look at
 
-- `src/agents/goliath/agent.ts`: assembles the model, tools, and lifecycle extensions.
-- `src/agents/goliath/runtime.ts`: `ask`, `approve`, and `cancel`, with isolated agent memory per conversation.
+- `src/agents/goliath/agent.ts`: exports one configured agent with the model, tools, and lifecycle extensions.
+- `src/agents/goliath/runtime.ts`: adapts approval buttons and cancellation to conversation-aware `agent.run` calls.
 - `src/agents/goliath/use-goliath-agent.ts`: owns the runtime and disposes pending work on unmount.
 - `src/hooks/use-conversations.ts`: connects agent results and approvals to Zustand conversation actions.
 - `src/agents/goliath/lifecycle/`: lifecycle and trace logging.
@@ -45,7 +45,8 @@ Metro loads the local harness source directly, so edits to `src/` and `example/`
 - `src/hooks/`: navigation, search, Zustand subscriptions, and input/scrolling.
 - `src/agents/goliath/tools/index.ts`: the catalog for the agent’s tools and suggested requests.
 
-Each conversation owns an agent and its memory; demo tasks are shared across conversations.
+One agent serves every conversation, with Goliath managing isolated memory and queues by
+`conversationId`; demo tasks are shared across conversations. Zustand holds the UI state.
 
 There is deliberately **no** `fallback`. The example is about what the phone finishes on its own;
 a cloud fallback would hide the moments when it cannot.
