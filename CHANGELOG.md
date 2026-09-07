@@ -8,12 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-07
+
 ### Added
 
 - Optional `outputSchema` on `createAgent` or individual `run` calls for guided structured
   device answers with inferred `RunResult<T>.output`, schema-aware input budgeting, and one
   validation retry. Cloud fallback and extension stops remain text-only.
-
 - A dark conversation UI for the example, with an inbox, search, suggested requests, inline
   task confirmations, and per-conversation agent memory.
 - Console lifecycle logging in the example app, with Fast Refresh for the local harness source
@@ -132,7 +133,8 @@ First release.
 - An eval runner scoring fixtures with `pass^k` over repeated runs, per-fixture escalation
   expectations, and forbidden words.
 
-[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/hellohelen-ai/goliath/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hellohelen-ai/goliath/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hellohelen-ai/goliath/compare/v0.0.3...v0.1.0
 [0.0.3]: https://github.com/hellohelen-ai/goliath/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/hellohelen-ai/goliath/compare/v0.0.1...v0.0.2
