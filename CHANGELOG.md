@@ -28,6 +28,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Fixed
 
+- Install the packed SDK directly in starter smoke checks without resolving its unpublished
+  release version from npm first.
 - Classify wrapped provider codes for unavailable models and context overflow separately;
   preserve on-device guardrail handling, including refusal codes without English messages.
 - Preserve earlier evaluation failures when the last run passes. Aggregate device/cloud counts
