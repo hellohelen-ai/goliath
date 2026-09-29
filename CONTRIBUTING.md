@@ -81,6 +81,24 @@ linking it to the build that produced it.
 Only repository admins can create a `v*` tag, and once pushed a tag cannot be moved or deleted,
 because provenance points at a commit.
 
+If npm accepts a publish but takes longer than the twenty-minute registry check, confirm the
+SDK version is available before recovering the starter:
+
+```sh
+npm view @hellohelen-ai/goliath@0.4.0 version gitHead
+gh workflow run publish.yml --ref main -f tag=v0.4.0
+```
+
+Recovery runs use the workflow on `main`. A repository admin must allow the `main` branch
+alongside `v*` tags in the `release` environment deployment rules, keeping its required reviewers.
+Manual runs from any other branch are refused.
+
+This manual mode only publishes the starter. It checks out the existing protected tag, requires
+the SDK registry commit to match it, and still needs `release` environment approval. It never
+republishes the SDK or moves the tag. Repeating recovery skips an already-published starter only
+when its tarball hash matches. If the timeout also skipped the GitHub Release, create it from the
+existing tag and that version's changelog entry with `gh release create --verify-tag`.
+
 If the workflow filename or the environment ever changes, the npm trusted publisher has to be
 re-pointed at the same values or the OIDC claim will not match:
 
