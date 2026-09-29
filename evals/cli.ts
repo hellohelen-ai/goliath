@@ -23,5 +23,10 @@ const perfect = (fixture: Fixture): ScriptedReply[] => {
   return replies;
 };
 
-const report = await runEvals({ fixtures, model: (fixture) => fakeModel(perfect(fixture)) });
+console.log("Scripted smoke test — these results do not measure real model quality.");
+const report = await runEvals({
+  fixtures,
+  model: (fixture) => fakeModel(perfect(fixture)),
+  metadata: { model: "scripted", dataset: "goliath-default" },
+});
 console.log(formatReport(report));

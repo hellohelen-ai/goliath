@@ -1,5 +1,5 @@
 import { NoObjectGeneratedError } from "ai";
-import { isGuardrail } from "./model-errors.js";
+import { modelFailureReason } from "./model-errors.js";
 import type { ErrorOrigin } from "./extensions.js";
 import { isAbort } from "./extensions.js";
 
@@ -33,7 +33,8 @@ const modelCall = async <T>(role: ModelCallError["role"], fn: () => Promise<T>):
     return await fn();
   } catch (error) {
     if (isAbort(error)) throw new OperationError("model", error);
-    if (NoObjectGeneratedError.isInstance(error) && !isGuardrail(error)) throw error;
+    if (NoObjectGeneratedError.isInstance(error) && modelFailureReason(error) === "model-error")
+      throw error;
     throw new ModelCallError(role, error);
   }
 };

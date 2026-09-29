@@ -10,6 +10,9 @@ config.resolver.nodeModulesPaths = [
 
 // Load the checkout directly so harness edits participate in Fast Refresh.
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "@hellohelen-ai/goliath/evals") {
+    return { type: "sourceFile", filePath: path.join(source, "evals/index.ts") };
+  }
   if (moduleName === "@hellohelen-ai/goliath/filesystem") {
     return { type: "sourceFile", filePath: path.join(source, "filesystem/index.ts") };
   }

@@ -1,6 +1,6 @@
 ---
 title: Goliath
-description: An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.
+description: An agent harness for on-device language models. Built for Apple Foundation Models and bounded context windows.
 template: splash
 hero:
   tagline: An agent harness for on-device language models. It plans one step at a time, keeps every context small, confirms before it writes, and hands off to the cloud only when the device cannot finish.
@@ -21,7 +21,7 @@ npm i @hellohelen-ai/goliath
 ```
 
 <CardGrid stagger>
-  <Card title="Built for a 4k window" icon="seti:config">
+  <Card title="Bounded by model capacity" icon="seti:config">
     The conductor sees the ask, a memory brief, and one line per step. Never a raw tool result.
   </Card>
   <Card title="One tool per step" icon="setting">

@@ -7,12 +7,15 @@
 
 **An agent harness for on-device language models.**
 
-Goliath targets Apple Foundation Models: a language model of roughly three billion parameters that
-ships on every iPhone with Apple Intelligence. The model runs locally, at no cost, and no data
-leaves the device. It also has a 4,096-token context window and loses track of a task after a few
-tool calls. Goliath is designed around that constraint. It plans one step at a time, runs each step
-in a fresh context, keeps tool output small, confirms before it changes anything, and hands the
-turn to a cloud agent when the device cannot finish.
+Goliath targets Apple's on-device Foundation Models, which run locally on supported devices
+with Apple Intelligence enabled. It defaults to a conservative 4,096-token input/output budget;
+actual capacity depends on the model and runtime. Supply `window` and `countTokens` to use the
+model's reported capacity and tokenizer, as the example app does.
+
+Goliath plans one step at a time, runs each step in a fresh context, keeps tool output small,
+confirms before it changes anything, and can hand the turn to a configured cloud fallback.
+On-device inference stays local; application tools and an optional fallback determine whether
+other data leaves the device.
 
 ```sh
 npm i @hellohelen-ai/goliath
@@ -346,21 +349,41 @@ harness sent exactly the prompts you expected. `model.calls` holds every prompt 
 
 ## Evals
 
-`evals/fixtures.ts` holds the asks a personal assistant hears every day, with the tool calls a good
-run makes and where it should finish. `runEvals` scores any model against them and prints the
-split:
+The published `@hellohelen-ai/goliath/evals` entry point runs disposable task fixtures through
+any AI SDK model. It preserves every attempt, including earlier failures, and reports pass^k,
+execution errors, and device/cloud counts across **all attempts**.
 
+```ts
+import { fixtures, runEvals, formatReport } from "@hellohelen-ai/goliath/evals";
+
+const report = await runEvals({
+  fixtures,
+  model: () => () => apple(), // fresh native instance for each generation
+  ...appleContextOptions(), // example's runtime window and tokenizer bridge
+  runs: 3,
+  metadata: { device: "your test device", osVersion: "your OS version" },
+});
+console.log(formatReport(report));
 ```
-PASS  list-today         device    412ms
-PASS  add-task           device    655ms
-PASS  add-after-check    device   1203ms
-PASS  small-talk         device    198ms
-PASS  plan-week          cloud     301ms
 
-5/5 passed · 4 on device · 1 escalated
-```
+`appleContextOptions` comes from the example's local Expo module; it is not a library export.
+Other providers can supply their own `window` and `countTokens` or retain the conservative defaults.
+The built-in tools modify only a disposable in-memory task list. The default fallback is a
+scripted acknowledgement that measures handoff decisions, not cloud answer quality.
+`bun run evals` is explicitly a **scripted smoke test**, not a device benchmark.
+See the [evaluation guide](https://hellohelen-ai.github.io/goliath/guides/evals/) for fixtures,
+cancellation, report fields, and device testing.
 
-The on-device share on the last line is the primary metric for this project.
+## Apple platform compatibility
+
+Keep the 4,096-token default for callers without capacity detection. The example already reads
+`SystemLanguageModel.contextSize` and uses `tokenCount(for:)` on iOS 26.4+ while supporting iOS 26.
+Build its native bridge with Xcode 26.4 or newer; `bun run native:check` typechecks the native
+Foundation Models calls for device and simulator targets. CI also builds the complete native app.
+
+The [Apple integration guide](https://hellohelen-ai.github.io/goliath/guides/apple-compatibility/)
+explains provider release limitations and the boundaries for iOS 27 Private Cloud Compute,
+multimodal inputs, and Dynamic Profiles. These features are not enabled by this release.
 
 ## Status
 

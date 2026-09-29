@@ -166,3 +166,17 @@ Demo tasks and scratch files reset on launch; conversations and notes persist.
 The composition lives in `src/agents/goliath/filesystem/`: `documents.ts` supplies references,
 `backend.ts` defines routes and scopes, and `index.ts` chooses the exposed tools.
 Delete is available in the library but not registered in the example.
+
+## Native checks and real-model evals
+
+Run `bun run native:check` from the repository root to typecheck the context metrics for iOS 26
+device and simulator targets using Xcode 26.4+. CI additionally builds the full simulator app.
+These checks do not run inference.
+
+`src/agents/goliath/evaluate.ts` exports `runAppleEvals({ device, signal? })`. Call it explicitly
+from a development action while no chat generation is running. It uses the same native capacity
+and tokenizer as the chat agent, fresh model instances per generation, and three attempts per
+fixture. Its tools and memory are disposable; it does not modify your app's tasks or conversations.
+Save the returned report alongside the exact provider version and device/OS details. The fallback
+is a scripted handoff acknowledgement, so the report does not measure cloud answer quality.
+`bun run evals` at the repository root is only a scripted runner smoke test.
