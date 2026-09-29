@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { repository, templateName } from "./export.js";
@@ -35,8 +35,12 @@ try {
   await lstat(join(app, "assets/stone.svg"));
   await lstat(join(app, ".gitignore"));
 
-  // Override only the SDK dependency. The scaffold still exercises the exported template bytes.
-  run("bun", ["add", "--exact", sdk], app);
+  // Replace the unpublished registry version before resolving any dependencies. `bun add`
+  // may resolve the existing manifest first, so it cannot safely make this substitution.
+  // The packed template retains its release pin; only this disposable app uses the tarball.
+  manifest.dependencies[expected.name] = `file:${sdk}`;
+  await writeFile(join(app, "package.json"), JSON.stringify(manifest, null, 2) + "\n");
+  run("bun", ["install"], app);
   const installed = join(app, "node_modules/@hellohelen-ai/goliath");
   assert.equal((await lstat(installed)).isSymbolicLink(), false);
   assert.equal(
