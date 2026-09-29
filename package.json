@@ -1,7 +1,7 @@
 {
   "name": "@hellohelen-ai/goliath",
   "version": "0.3.0",
-  "description": "An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.",
+  "description": "An agent harness for on-device language models. Built for Apple Foundation Models and bounded context windows.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -42,6 +42,10 @@
     "./filesystem": {
       "types": "./dist/filesystem/index.d.ts",
       "default": "./dist/filesystem/index.js"
+    },
+    "./evals": {
+      "types": "./dist/evals/index.d.ts",
+      "default": "./dist/evals/index.js"
     }
   },
   "scripts": {
@@ -55,7 +59,8 @@
     "evals": "bun run evals/cli.ts",
     "starter:export": "bun scripts/starter/export.ts",
     "starter:pack": "bun scripts/starter/pack.ts",
-    "starter:check": "bun run build && bun scripts/starter/check.ts"
+    "starter:check": "bun run build && bun scripts/starter/check.ts",
+    "native:check": "bash scripts/native/check-context.sh"
   },
   "peerDependencies": {
     "ai": "^7.0.0",

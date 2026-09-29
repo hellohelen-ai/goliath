@@ -57,10 +57,20 @@ jobs:
           node --input-type=module -e "
             const m = await import('@hellohelen-ai/goliath');
             const t = await import('@hellohelen-ai/goliath/testing');
+            const e = await import('@hellohelen-ai/goliath/evals');
             for (const n of ['createAgent','defineTool','inMemory']) {
               if (typeof m[n] !== 'function') throw new Error('missing export: ' + n);
             }
             if (typeof t.fakeModel !== 'function') throw new Error('missing export: fakeModel');
+            if (typeof e.runEvals !== 'function' || !e.fixtures.length) throw new Error('missing eval exports');
+            const report = await e.runEvals({
+              fixtures: e.fixtures.filter(f => f.id === 'small-talk'),
+              model: t.fakeModel([
+                { json: { kind: 'answer', brief: 'reply' } },
+                { text: 'Hello' },
+              ]),
+            });
+            if (report.totalRuns !== 1 || report.passed !== 1) throw new Error('eval smoke failed');
             console.log('entry points resolve; exports present');
           "
 

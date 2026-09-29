@@ -1,4 +1,4 @@
-import { isGuardrail } from "./model-errors.js";
+import { isGuardrail, modelFailureReason } from "./model-errors.js";
 import { contentBudgets, fitResult, retrievedSteps } from "./tool-output.js";
 import { snapshot } from "./context.js";
 import { clipTokens, ContextBudgetError } from "./budget.js";
@@ -209,7 +209,8 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
         else if (isGuardrail(error.cause)) {
           emit({ type: "escalate", reason: "guardrail", error: describeError(error.cause) });
           completed = result("");
-        } else completed = await escalate("model-error", describeError(error.cause));
+        } else
+          completed = await escalate(modelFailureReason(error.cause), describeError(error.cause));
       }
     }
     final = { status: "completed", result: completed };
@@ -339,7 +340,12 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
     escalating = true;
     emit({ type: "escalate", reason, ...(error ? { error } : {}) });
     if (!input.fallback) {
-      if (reason === "model-error" || reason === "context-budget" || reason === "answer-invalid")
+      if (
+        reason === "model-error" ||
+        reason === "model-unavailable" ||
+        reason === "context-budget" ||
+        reason === "answer-invalid"
+      )
         return result("");
       let text = "";
       let output: unknown;
@@ -418,7 +424,8 @@ const runTurn = async <C>(input: TurnInput<C>): Promise<RunResult> => {
     );
     return finishAnswer(response.text, {
       persist: true,
-      deviceFailed: reason === "model-error" || reason === "context-budget",
+      deviceFailed:
+        reason === "model-error" || reason === "model-unavailable" || reason === "context-budget",
     });
   }
 

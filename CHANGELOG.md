@@ -10,12 +10,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
 
 ### Added
 
+- Published `/evals` entry point for device evaluation with runtime context/token settings,
+  fresh generation factories, cancellation, metadata, and per-attempt reports. The example
+  includes an explicit Apple evaluation function using disposable fixture tools.
+- Native CI compiles the Foundation Models metrics for iOS 26 device and simulator targets,
+  then builds the complete Expo simulator app without signing.
+- Apple compatibility guidance covering runtime budgets and provider boundaries for iOS 27.
+
 - Standalone Expo starter export and tarball commands sourced from the example, with pinned SDK
   dependency, local assets, native context module, and customization instructions.
 - CI and release-preflight checks that scaffold a fresh app outside the repository, install the
   packed SDK, and run typechecking, tests, Expo Doctor, and an iOS bundle.
 - Public npm starter template packaging and a release job publishing the template after the
   matching SDK version, with a documented one-time trusted-publisher setup.
+
+### Fixed
+
+- Classify wrapped provider codes for unavailable models and context overflow separately;
+  preserve on-device guardrail handling, including refusal codes without English messages.
+- Preserve earlier evaluation failures when the last run passes. Aggregate device/cloud counts
+  and mean steps across every attempt; retain execution errors and reject invalid repeat counts.
+- Clarify runtime-dependent context capacity and the limits of scripted evaluation results.
 
 ## [0.3.0] - 2026-09-07
 

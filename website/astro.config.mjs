@@ -12,7 +12,7 @@ export default defineConfig({
     starlight({
       title: "Goliath",
       description:
-        "An agent harness for on-device language models. Built for Apple Foundation Models and a 4,096-token context window.",
+        "An agent harness for on-device language models. Built for Apple Foundation Models and bounded context windows.",
       logo: { src: "./src/assets/logo.svg", alt: "" },
       favicon: "/favicon.svg",
       social: [
@@ -53,6 +53,7 @@ export default defineConfig({
             { label: "Tracing", slug: "guides/tracing" },
             { label: "Testing without a phone", slug: "guides/testing" },
             { label: "Evals", slug: "guides/evals" },
+            { label: "Apple compatibility", slug: "guides/apple-compatibility" },
           ],
         },
         {
